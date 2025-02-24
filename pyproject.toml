@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zkregex-fuzzer"
+version = "0.1.0"
+description = "A grammar-based fuzzer for zk-regex"
+authors = [
+  { name="Stefanos Chaliasos", email="stefanos@zksecurity.xyz" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["fuzzing", "grammar", "zkregex"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent"
+]
+dependencies = [
+  "fuzzingbook>=0.11.0"
+]
+
+[project.scripts]
+zkregex-fuzzer = "zkregex_fuzzer.cli:main"
