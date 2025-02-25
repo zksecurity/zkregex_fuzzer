@@ -1,3 +1,12 @@
+"""
+Implement transformes.
+
+* regex_to_grammar: transforms a regex to a grammar
+
+TODO: 
+    - Add more tests
+    - Fix linting errors
+"""
 import sre_parse
 from typing import Dict, List, Tuple, Any
 from fuzzingbook.Grammars import Grammar, Expansion
@@ -20,6 +29,10 @@ def regex_to_grammar(regex: str) -> Grammar:
     This is a simplified approach that may not be exactly 1:1 with
     Python's entire regex engine, but demonstrates how to build a
     grammar from typical parse tokens.
+
+    NOTE: Maybe we should do something like this:
+    https://rahul.gopinath.org/post/2021/10/22/fuzzing-with-regular-expressions/
+    Where we parse the regex concretely, and then convert it into a grammar.
     """
 
     parsed_pattern = sre_parse.parse(regex)  

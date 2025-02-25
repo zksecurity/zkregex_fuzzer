@@ -1,0 +1,73 @@
+"""
+Implements the logic for generating regexes.
+
+We have two generators:
+- A grammar-based generator that uses The Fuzzing Book's GrammarFuzzer.
+- Pre-seeded regexes.
+
+TODO:
+- Add DatabaseRegexGenerator that uses a database of regexes to generate new ones.
+    - The database should be minted from here: https://github.com/zkemail/zk-regex/tree/main/packages/circom/circuits/common
+    - The database should include in the future any good seeds that help us find bugs.
+- Add logging and statistics to the generator.
+- Add a DFA-based generator?
+"""
+
+from abc import ABC, abstractmethod
+from typing import List
+
+from zkregex_fuzzer.utils import is_valid_regex, check_zkregex_rules_basic
+from zkregex_fuzzer.utils import grammar_fuzzer
+from zkregex_fuzzer.logger import logger
+from fuzzingbook.Grammars import Grammar
+
+
+class RegexGenerator(ABC):
+    """
+    Base abstract class for regex generators.
+    """
+
+    @abstractmethod
+    def generate_unsafe(self) -> str:
+        """
+        Generate a regex without any checks.
+        """
+        pass
+
+    def generate(self) -> str:
+        """
+        Generate a regex.
+        """
+        while True:
+            regex = self.generate_unsafe()
+            if not is_valid_regex(regex):
+                continue
+            if not check_zkregex_rules_basic(regex):
+                continue
+            logger.debug(f"Generated regex: {regex}")
+            return regex
+
+    def generate_many(self, num: int) -> List[str]:
+        """
+        Generate `num` regexes.
+        """
+        logger.debug(f"Generating {num} regexes.")
+        return [self.generate() for _ in range(num)]
+
+
+class GrammarRegexGenerator(RegexGenerator):
+    """
+    Generate regexes using a grammar.
+    """
+
+    def __init__(self, grammar: Grammar, start_symbol: str, max_nonterminals: int = 10, max_expansion_trials: int = 100):
+        self.grammar = grammar
+        self.start_symbol = start_symbol
+        self.max_nonterminals = max_nonterminals
+        self.max_expansion_trials = max_expansion_trials
+
+    def generate_unsafe(self) -> str:
+        """
+        Generate a regex using a grammar.
+        """
+        return grammar_fuzzer(self.grammar, self.start_symbol, self.max_nonterminals, self.max_expansion_trials)

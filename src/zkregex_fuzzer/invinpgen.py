@@ -1,0 +1,3 @@
+"""
+Invalid Input Generator.
+"""
