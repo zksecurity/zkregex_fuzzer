@@ -27,12 +27,6 @@ def main():
         help="Number of inputs to generate for each regex (default: 10)."
     )
     parser.add_argument(
-        "--max-input-size",
-        type=int,
-        default=200,
-        help="Maximum size of the circuit input (default: 200)."
-    )
-    parser.add_argument(
         "--oracle",
         choices=["valid", "invalid"],
         help="Wherether the generated inputs should be valid or invalid wrt the regex."
@@ -50,16 +44,21 @@ def main():
     parser.add_argument(
         "--fuzzer",
         choices=["grammar"],
-        help=f"The fuzzer to use for the fuzzer (options: grammar).",
+        help=f"The fuzzer to use for regex generation (options: grammar).",
         required=True,
     )
     parser.add_argument(
-        "--max-depth",
+        "--grammar-max-depth",
         type=int,
         default=5,
         help="Maximum depth of recursion in the grammar (default: 5)."
     )
-
+    parser.add_argument(
+        "--circom-max-input-size",
+        type=int,
+        default=200,
+        help="Maximum size of the circuit input (default: 200)."
+    )
     parser.add_argument(
         "--circom-library",
         nargs="*",
@@ -119,7 +118,7 @@ def main():
     print(f"Valid input generator: {args.valid_input_generator}")
     print(f"Regex num: {args.regex_num}")
     print(f"Inputs num: {args.inputs_num}")
-    print(f"Max depth: {args.max_depth}")
+    print(f"Max depth: {args.grammar_max_depth}")
     print("-" * 80)
 
     if args.fuzzer == "grammar":
@@ -129,7 +128,7 @@ def main():
             oracle_params=(args.oracle == "valid", args.valid_input_generator),
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
-            max_depth=args.max_depth,
+            max_depth=args.grammar_max_depth,
             kwargs=vars(args)
         )
     
