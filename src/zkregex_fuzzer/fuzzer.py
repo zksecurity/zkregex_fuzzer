@@ -18,6 +18,7 @@ def fuzz_with_grammar(
         regex_num: int,
         inputs_num: int,
         max_depth: int,
+        kwargs
     ):
     """
     Fuzz test with grammar.
@@ -42,7 +43,7 @@ def fuzz_with_grammar(
     primary_runner = PythonReRunner
     for regex, inputs in zip(regexes, regexes_inputs):
         print(f"Testing regex: {regex} -------- ({len(inputs)} inputs)")
-        result = harness(regex, primary_runner, target_runner, inputs, oracle)
+        result = harness(regex, primary_runner, target_runner, inputs, oracle, kwargs)
         if result.status == HarnessStatus.FAILED:
             print("-" * 80)
             print(f"Found a bug with regex: {regex}")

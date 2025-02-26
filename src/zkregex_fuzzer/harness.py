@@ -9,6 +9,7 @@ TODO:
 from typing import Type, List
 from enum import Enum
 from dataclasses import dataclass
+from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.runner import Runner, RegexCompileError, RegexRunError
 
 class HarnessStatus(Enum):
@@ -28,7 +29,7 @@ class HarnessResult:
     # Status (an enum for the result of the test)
     status: HarnessStatus
 
-def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: Type[Runner], inputs: List[str], oracle: bool) -> HarnessResult:
+def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: Type[Runner], inputs: List[str], oracle: bool, kwargs) -> HarnessResult:
     """
     Harness for running regexes.
 
@@ -37,6 +38,7 @@ def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: 
     secondary_runner_cls: The class of the secondary runner (either circom or noir runners).
     inputs: The inputs to use to test the regex.
     oracle: The oracle to use to test the regex. True if the inputs are valid regexes. False if the inputs are invalid regexes.
+    kwargs: The arguments to pass to the secondary runner.
 
     Returns:
         A HarnessResult object.
@@ -49,7 +51,7 @@ def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: 
         return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED)
 
     try:
-        secondary_runner = secondary_runner_cls(regex)
+        secondary_runner = secondary_runner_cls(regex, kwargs)
     except RegexCompileError as e:
         return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.COMPILE_ERROR)
 
@@ -63,7 +65,7 @@ def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: 
         try:
             if secondary_runner.match(input) != oracle:
                 failed_inputs.append(input)
-        except RegexRunError:
+        except RegexRunError as e:
             return HarnessResult(regex, inp_num, oracle, [input], HarnessStatus.RUN_ERROR)
             
     if len(failed_inputs) > 0:
