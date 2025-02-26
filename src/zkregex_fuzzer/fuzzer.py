@@ -44,7 +44,7 @@ def fuzz_with_grammar(
     for regex, inputs in zip(regexes, regexes_inputs):
         print(f"Testing regex: {regex} -------- ({len(inputs)} inputs)")
         result = harness(regex, primary_runner, target_runner, inputs, oracle, kwargs)
-        if result.status == HarnessStatus.FAILED:
+        if result.status != HarnessStatus.SUCCESS:
             print("-" * 80)
             print(f"Found a bug with regex: {regex}")
             print(f"Inputs: {inputs}")
