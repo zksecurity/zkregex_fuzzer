@@ -46,7 +46,7 @@ def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: 
     regex = regex
     inp_num = len(inputs)
     try:
-        primary_runner = primary_runner_cls(regex)
+        primary_runner = primary_runner_cls(regex, {})
     except RegexCompileError as e:
         return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED)
 

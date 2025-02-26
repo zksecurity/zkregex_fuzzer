@@ -239,9 +239,9 @@ class CircomRunner(Runner):
         self._run_the_prover = kwargs.get("circom_prove", False)
         self._ptau_path = kwargs.get("circom_ptau", None)
         self._link_path = kwargs.get("circom_library", [])
-        self._max_input_size = kwargs.get("max_input_size", 200)
+        self._circom_max_input_size = kwargs.get("circom_max_input_size", 200)
         self._template_name = "TestRegex"
-        super().__init__(regex)
+        super().__init__(regex, kwargs)
         self._runner = "Circom"
 
     def compile(self, regex: str) -> None:
@@ -269,7 +269,7 @@ class CircomRunner(Runner):
         # Append the circom file to include the main function
         with open(circom_file_path, 'a') as f:
             f.write("\n\n")
-            f.write("component main {public [msg]} = " + f"{self._template_name}({self._max_input_size});")
+            f.write("component main {public [msg]} = " + f"{self._template_name}({self._circom_max_input_size});")
 
         # Compile the circom code to wasm
         self._wasm_path, self._r1cs_path = CircomSubprocess.compile(circom_file_path, self._link_path)
@@ -284,7 +284,7 @@ class CircomRunner(Runner):
         Match the regex on an input.
         """
         # Convert input to list of decimal ASCII values and pad input with zeroes
-        numeric_input = [ord(c) for c in input] + [0] * (self._max_input_size - len(input))
+        numeric_input = [ord(c) for c in input] + [0] * (self._circom_max_input_size - len(input))
         
         # Write input to a temporary JSON file
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_file:
@@ -292,7 +292,7 @@ class CircomRunner(Runner):
             input_path = tmp_file.name
 
         # Skip if input is larger than circuit max input size
-        if len(numeric_input) > self._max_input_size:
+        if len(numeric_input) > self._circom_max_input_size:
             logger.info(f"Input too large for input: {input}")
             raise RegexRunError(f"Input too large for input: {input}")
         
