@@ -10,7 +10,7 @@ from zkregex_fuzzer.runner.base_runner import Runner, RegexCompileError, RegexRu
 class ZkRegexSubprocess:
 
     @classmethod
-    def get_installed_version(cls):
+    def get_installed_version(cls) -> str:
         """
         Get the installed version of zk-regex.
         """
@@ -22,7 +22,7 @@ class ZkRegexSubprocess:
             raise ValueError("zk-regex is not installed")
 
     @classmethod
-    def compile(cls, json_file_path, output_file_path, template_name="TestRegex", substr=True):
+    def compile(cls, json_file_path: str, output_file_path: str, template_name: str = "TestRegex", substr=True):
         """
         Compile a regex using zk-regex.
         """
@@ -41,7 +41,7 @@ class ZkRegexSubprocess:
 class CircomSubprocess:
 
     @classmethod
-    def get_installed_version(cls):
+    def get_installed_version(cls) -> str:
         """
         Get the installed version of Circom.
         """
@@ -53,7 +53,7 @@ class CircomSubprocess:
             raise ValueError("Circom is not installed")
 
     @classmethod
-    def compile(cls, circom_file_path: str, link_path: list[str]):
+    def compile(cls, circom_file_path: str, link_path: list[str]) -> tuple[str, str]:
         """
         Compile a circom file to r1cs and wasm.
         """
@@ -72,7 +72,6 @@ class CircomSubprocess:
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
-            logger.debug(result.stderr)
             raise RegexCompileError(f"Error compiling with Circom: {result.stderr}")
         
         r1cs_file_path = base_dir / f"{base_name}.r1cs"
@@ -82,7 +81,7 @@ class CircomSubprocess:
 class SnarkjsSubprocess:
 
     @classmethod
-    def get_installed_version(cls):
+    def get_installed_version(cls) -> str:
         """
         Get the installed version of SnarkJS.
         """
@@ -159,7 +158,7 @@ class SnarkjsSubprocess:
         return str(output_path)
     
     @classmethod
-    def prove(cls, zkey_path: str, witness_path: str) -> str:
+    def prove(cls, zkey_path: str, witness_path: str) -> tuple[str, str]:
         """
         geenrate proof from the witness with the zkey.
         """
@@ -198,6 +197,8 @@ class SnarkjsSubprocess:
 
         if result.returncode != 0:
             raise RegexRunError(f"Error running with SnarkJS: {result.stdout}")
+        
+        return "OK" in result.stdout
     
     @classmethod
     def extract_witness(cls, witness_path: str) -> dict:
@@ -221,6 +222,7 @@ class SnarkjsSubprocess:
             raise RegexRunError(f"Error running with SnarkJS: {result.stdout}")
         
         json_result = json.loads(open(output_path, 'r').read())
+        Path(output_path).unlink()
 
         return json_result
         
@@ -243,6 +245,7 @@ class CircomRunner(Runner):
         self._template_name = "TestRegex"
         super().__init__(regex, kwargs)
         self._runner = "Circom"
+        self.identifer = ""
 
     def compile(self, regex: str) -> None:
         """
@@ -252,6 +255,8 @@ class CircomRunner(Runner):
         base_json = {
             "parts": []
         }
+        # TODO: handle the following if is_public is set to True:
+        # the section containing this ^ must be non-public (is_public: false).
         regex_parts = {"regex_def": regex, "is_public": False}
         base_json["parts"].append(regex_parts)
         regex_json = json.dumps(base_json)
@@ -279,7 +284,7 @@ class CircomRunner(Runner):
             self._zkey_path = SnarkjsSubprocess.setup_zkey(self._r1cs_path, self._ptau_path)
             self._vkey_path = SnarkjsSubprocess.export_verification_key(self._zkey_path)
 
-    def match(self, input: str) -> bool:
+    def match(self, input: str) -> tuple[bool, str]:
         """
         Match the regex on an input.
         """
@@ -293,22 +298,50 @@ class CircomRunner(Runner):
 
         # Skip if input is larger than circuit max input size
         if len(numeric_input) > self._circom_max_input_size:
-            logger.info(f"Input too large for input: {input}")
             raise RegexRunError(f"Input too large for input: {input}")
         
         # Generate the witness
         witness_path = SnarkjsSubprocess.witness_gen(self._wasm_path, input_path)
+        # Remove input file
+        Path(input_path).unlink()
         
         # Also run the proving backend if the flag is set
         if self._run_the_prover:
             # Proving
             proof, public_input = SnarkjsSubprocess.prove(self._zkey_path, witness_path)
             # Verification
-            SnarkjsSubprocess.verify(self._vkey_path, proof, public_input)
+            if not SnarkjsSubprocess.verify(self._vkey_path, proof, public_input):
+                raise RegexRunError(f"Error running with SnarkJS: Proof verification failed")
 
         # Extract from the witness the result of the match
         result = SnarkjsSubprocess.extract_witness(witness_path)
+
+        # TODO: get and convert substr output to its string representation
         
         # Return the output of the match
         output = int(result[1])
-        return output == 1
+        return output == 1, ""
+    
+    def clean(self):
+        # Remove all temporary files
+        if self._wasm_path:
+            shutil.rmtree(Path(self._wasm_path).parent)
+        Path.unlink(self._r1cs_path, True)
+        Path.unlink(self._zkey_path, True)
+        Path.unlink(self._vkey_path, True)
+    
+    def save(self, path):
+        r1cs_path = Path(self._r1cs_path)
+        wasm_path = Path(self._wasm_path)
+        target_path = Path(path).resolve() / f"output_{r1cs_path.stem}"
+        target_path.mkdir()
+
+        r1cs_path.replace(target_path / r1cs_path.name)
+        wasm_path.replace(target_path / wasm_path.name)
+        
+        if self._run_the_prover:
+            zkey_path = Path(self._zkey_path)
+            vkey_path = Path(self._vkey_path)
+
+            zkey_path.replace(target_path / zkey_path.name)
+            vkey_path.replace(target_path / vkey_path.name)

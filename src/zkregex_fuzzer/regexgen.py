@@ -13,6 +13,7 @@ TODO:
 - Add a DFA-based generator?
 """
 
+import random, pathlib, glob, json
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -71,3 +72,57 @@ class GrammarRegexGenerator(RegexGenerator):
         Generate a regex using a grammar.
         """
         return grammar_fuzzer(self.grammar, self.start_symbol, self.max_nonterminals, self.max_expansion_trials)
+
+class DatabaseRegexGenerator(RegexGenerator):
+    """
+    Generate regexes using a database of regexes.
+    """
+
+    def __init__(self, dir_path: str = None):
+        dir_path = dir_path or self._get_default_path()
+        self.database = self._get_database_from_path(dir_path)
+
+    def _get_default_path(self) -> str:
+        """
+        Get the default path for the database.
+        """
+        current_path = pathlib.Path(__file__).parent.parent.parent
+        database_path = current_path / "database"
+        return str(database_path)
+
+    def _get_database_from_path(self, dir_path: str) -> List[str]:
+        """
+        Get the database from a path.
+        """
+        database = []
+        for file in glob.glob(f"{dir_path}/*.json"):
+            with open(file, "r") as f:
+                content = json.loads(f.read())
+                regex = ""
+                for part in content["parts"]:
+                    regex += r"{}".format(part['regex_def'])
+
+                database.append(regex)
+
+        return database
+
+    def generate_unsafe(self) -> str:
+        """
+        Generate a regex using a database.
+        """
+        return random.choice(self.database)
+    
+    def generate_many(self, num):
+        
+        if num >= len(self.database):
+            return self.database
+        else:
+            result = []
+            for _ in range(num):
+                while True:
+                    generated = self.generate()
+                    if generated not in result:
+                        result.append(generated)
+                        break
+                
+            return result

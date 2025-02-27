@@ -28,8 +28,17 @@ class HarnessResult:
     failed_inputs: List[str]
     # Status (an enum for the result of the test)
     status: HarnessStatus
+    # Error message (if any)
+    error_message: str = ""
 
-def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: Type[Runner], inputs: List[str], oracle: bool, kwargs) -> HarnessResult:
+def harness(
+        regex: str,
+        primary_runner_cls: Type[Runner],
+        secondary_runner_cls: Type[Runner],
+        inputs: List[str],
+        oracle: bool,
+        kwargs: dict
+    ) -> HarnessResult:
     """
     Harness for running regexes.
 
@@ -45,30 +54,41 @@ def harness(regex: str, primary_runner_cls: Type[Runner], secondary_runner_cls: 
     """
     regex = regex
     inp_num = len(inputs)
+    output_path = kwargs.get("output")
     try:
         primary_runner = primary_runner_cls(regex, {})
     except RegexCompileError as e:
-        return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED)
+        return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED, str(e))
 
     try:
         secondary_runner = secondary_runner_cls(regex, kwargs)
     except RegexCompileError as e:
-        return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.COMPILE_ERROR)
+        return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.COMPILE_ERROR, str(e))
 
     failed_inputs = []
     for input in inputs:
+        primary_runner_str = None
         try:
-            if primary_runner.match(input) != oracle:
+            primary_runner_status, primary_runner_str = primary_runner.match(input)
+            if primary_runner_status != oracle:
                 return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED)
-        except RegexRunError:
-            return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED)
-        try:
-            if secondary_runner.match(input) != oracle:
-                failed_inputs.append(input)
         except RegexRunError as e:
-            return HarnessResult(regex, inp_num, oracle, [input], HarnessStatus.RUN_ERROR)
+            return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED, str(e))
+        try:
+            secondary_runner_status, secondary_runner_str = secondary_runner.match(input)
+            if secondary_runner_status != oracle:
+                failed_inputs.append(input)
+                
+            # TODO: support for substr matching
+            # elif secondary_runner_status == oracle and primary_runner_str != secondary_runner_str:
+                # failed_inputs.append(input)
+        except RegexRunError as e:
+            secondary_runner.save(output_path)
+            return HarnessResult(regex, inp_num, oracle, [input], HarnessStatus.RUN_ERROR, str(e))
             
     if len(failed_inputs) > 0:
+        secondary_runner.save(output_path)
         return HarnessResult(regex, inp_num, oracle, failed_inputs, HarnessStatus.FAILED)
 
+    secondary_runner.clean()
     return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.SUCCESS)

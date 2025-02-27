@@ -1,5 +1,6 @@
 from zkregex_fuzzer.runner import CircomRunner, PythonReRunner
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
+from zkregex_fuzzer.regexgen import GrammarRegexGenerator, DatabaseRegexGenerator
 from zkregex_fuzzer.vinpgen import GrammarBasedGenerator, RstrGenerator, ExrexGenerator
 
 
@@ -16,4 +17,9 @@ VALID_INPUT_GENERATORS = {
     "grammar": GrammarBasedGenerator,
     "rstr": RstrGenerator,
     "exrex": ExrexGenerator,
+}
+
+GENERATORS = {
+    "grammar": GrammarRegexGenerator,
+    "database": DatabaseRegexGenerator,
 }

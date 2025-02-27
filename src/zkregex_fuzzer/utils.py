@@ -31,8 +31,8 @@ def check_zkregex_rules_basic(regex: str) -> bool:
         - Only one accepting state
     """
 
-    # 1) Must end with '$'
-    if not regex.endswith("$"):
+    # 1) Must end with '$' (if it present)
+    if "$" in regex and not regex.endswith("$"):
         return False
 
     # 2) '^' must be at start or in '(|^)'
@@ -52,6 +52,16 @@ def check_zkregex_rules_basic(regex: str) -> bool:
         # '^' occurs at (idx + 2)
         allowed_positions.add(idx + 2)
         idx += 4  # skip past
+
+    # If the string contains '[^]', that means '^' is at position (idx+1)
+    idx = 0
+    while True:
+        idx = regex.find("[^", idx)
+        if idx == -1:
+            break
+        # '^' occurs at (idx + 1)
+        allowed_positions.add(idx + 1)
+        idx += 2  # skip past
 
     # Now see if there's any '^' outside those allowed positions
     for match in re.finditer(r"\^", regex):
@@ -87,3 +97,9 @@ def grammar_fuzzer(grammar: Grammar, start_symbol: str, max_nonterminals: int = 
                            start_symbol=start_symbol,
                            max_nonterminals=max_nonterminals,
                            max_expansion_trials=max_expansion_trials)
+
+def pretty_regex(regex: str):
+    """
+    Format raw string regex to printable chars
+    """
+    return regex.replace("\n", r"\n").replace("\r", r"\r")
