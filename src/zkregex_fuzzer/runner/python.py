@@ -24,11 +24,14 @@ class PythonReRunner(Runner):
         except re.error as e:
             raise RegexCompileError(f"Error compiling regex: {e}")
 
-    def match(self, input: str) -> bool:
+    def match(self, input: str) -> tuple[bool, str]:
         """
         Match the regex on an input.
         """
         try:
-            return self._compiled_regex.match(input) is not None
+            match_input = self._compiled_regex.match(input)
+            match_success = match_input is not None
+            str_result = match_input[0] if match_success else ""
+            return (match_success, str_result)
         except re.error as e:
             raise RegexRunError(f"Error matching regex: {e}")

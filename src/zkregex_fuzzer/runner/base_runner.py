@@ -44,7 +44,7 @@ class Runner(ABC):
         pass
 
     @abstractmethod
-    def match(self, input: str) -> bool:
+    def match(self, input: str) -> tuple[bool, str]:
         """
         Match the regex on an input.
         """

@@ -60,7 +60,7 @@ REGEX_GRAMMAR: Grammar = {
     # Expression: possibly multiple union parts
     "<EXPRESSION>": [
         "<CONCAT>",
-        "<CONCAT>|<EXPRESSION>"
+        # "<CONCAT>|<EXPRESSION>"
     ],
 
     "<CONCAT>": [
@@ -77,7 +77,7 @@ REGEX_GRAMMAR: Grammar = {
     "<QUANTIFIER>": [
         "*",
         "+",
-        "?",
+        # "?",
         "{<RANGE_SPEC>}"
     ],
 
@@ -89,7 +89,7 @@ REGEX_GRAMMAR: Grammar = {
     # Up to 2-digit integer
     "<INTEGER>": [
         "<DIGIT>",
-        "<DIGIT><DIGIT>",
+        # "<DIGIT><DIGIT>",
     ],
 
     # Single digit
@@ -114,7 +114,7 @@ REGEX_GRAMMAR: Grammar = {
     "<CHARCLASS>": [
         "[<CHARCLASS_BODY>]",
         # Is the complement supported?
-        #"[^<CHARCLASS_BODY>]"
+        "[^<CHARCLASS_BODY>]"
     ],
 
     # Body can have multiple items (range or char)
