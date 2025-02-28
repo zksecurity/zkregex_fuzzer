@@ -34,3 +34,19 @@ python src/zkregex_fuzzer/cli.py --fuzzer grammar --oracle valid --target python
 First we need to install zkregex. Follow the instructions from here:
 
 <https://github.com/zkemail/zk-regex/tree/main/packages/compiler>
+
+We further need to have installed zk-regex circom dependencies (circomlib and zk-regex circuits).
+You can follow the instructions from here:
+
+<https://github.com/zkemail/zk-regex/>
+
+Finally, if we say that you install the above in the parent directory you can run the fuzzer with the following command:
+
+```
+python src/zkregex_fuzzer/cli.py \
+    --oracle valid \
+    --target circom \
+    --valid-input-generator rstr \
+    --fuzzer grammar \
+    --circom-library ../zk-regex/node_modules/circomlib ../zk-regex/node_modules/
+```
