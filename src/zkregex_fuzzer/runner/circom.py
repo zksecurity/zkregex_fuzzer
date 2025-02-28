@@ -251,6 +251,7 @@ class CircomRunner(Runner):
         """
         Compile the regex.
         """
+        logger.debug(f"Compiling regex starts")
         # Create JSON for the regex for zk-regex 
         base_json = {
             "parts": []
@@ -269,7 +270,9 @@ class CircomRunner(Runner):
         circom_file_path = tempfile.NamedTemporaryFile(suffix=".circom", delete=False).name
 
         # Call zk-regex to generate the circom code
+        logger.debug(f"Generating circom code starts")
         ZkRegexSubprocess.compile(json_file_path, circom_file_path, self._template_name)
+        logger.debug(f"Generating circom code ends")
 
         # Append the circom file to include the main function
         with open(circom_file_path, 'a') as f:
@@ -277,17 +280,21 @@ class CircomRunner(Runner):
             f.write("component main {public [msg]} = " + f"{self._template_name}({self._circom_max_input_size});")
 
         # Compile the circom code to wasm
+        logger.debug(f"Compiling circom code starts")
         self._wasm_path, self._r1cs_path = CircomSubprocess.compile(circom_file_path, self._link_path)
+        logger.debug(f"Compiling circom code ends")
 
         # Also setup the proving and verification key if the flag is set
         if self._run_the_prover:
             self._zkey_path = SnarkjsSubprocess.setup_zkey(self._r1cs_path, self._ptau_path)
             self._vkey_path = SnarkjsSubprocess.export_verification_key(self._zkey_path)
+        logger.debug(f"Compiling regex ends")
 
     def match(self, input: str) -> tuple[bool, str]:
         """
         Match the regex on an input.
         """
+        logger.debug(f"Matching regex starts")
         # Convert input to list of decimal ASCII values and pad input with zeroes
         numeric_input = [ord(c) for c in input] + [0] * (self._circom_max_input_size - len(input))
         
@@ -298,10 +305,12 @@ class CircomRunner(Runner):
 
         # Skip if input is larger than circuit max input size
         if len(numeric_input) > self._circom_max_input_size:
-            raise RegexRunError(f"Input too large for input: {input}")
+            raise RegexRunError(f"Input too large for input: {len(numeric_input)}")
         
         # Generate the witness
+        logger.debug(f"Generating witness starts")
         witness_path = SnarkjsSubprocess.witness_gen(self._wasm_path, input_path)
+        logger.debug(f"Generating witness ends")
         # Remove input file
         Path(input_path).unlink()
         
@@ -320,6 +329,7 @@ class CircomRunner(Runner):
         
         # Return the output of the match
         output = int(result[1])
+        logger.debug(f"Matching regex ends")
         return output == 1, ""
     
     def clean(self):

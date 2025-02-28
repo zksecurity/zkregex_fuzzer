@@ -84,8 +84,16 @@ def main():
         type=str,
         help="Path to the ptau (powers-of-tau) file for the proving step"
     )
+    parser.add_argument(
+        "--logger-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logger level (default: INFO)."
+    )
 
     args = parser.parse_args()
+
+    logger.setLevel(args.logger_level)
 
     if args.oracle == "valid" and not args.valid_input_generator:
         print("Valid input generator is required for valid oracle.")

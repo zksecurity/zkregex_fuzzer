@@ -53,6 +53,7 @@ class ValidInputGenerator(ABC):
         If the generator is able to generate less than n valid inputs, 
         it will silently return the number of valid inputs generated.
         """
+        logger.debug("Start generating valid inputs.")
         valid_inputs = []
         attempts = 0
         logger.debug(f"Generating {n} valid inputs for the regex: {self.regex} with {self._max_attempts} attempts using {self.__class__.__name__}.")
@@ -66,7 +67,8 @@ class ValidInputGenerator(ABC):
             attempts += 1
         if len(valid_inputs) == 0:
             raise ValueError("Failed to generate any valid input for the regex.")
-        logger.debug(f"Generated valid inputs for the regex: {valid_inputs}.")
+        #logger.debug(f"Generated valid inputs for the regex: {valid_inputs}.")
+        logger.debug("Finished generating valid inputs.")
         return valid_inputs
 
     @abstractmethod
