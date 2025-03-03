@@ -56,9 +56,9 @@ class Runner(ABC):
         """
         pass
 
-    def save(self, path: str) -> None:
+    def save(self, path: str) -> str:
         """
         Save any produced temporary files.
         """
-        pass
+        return ""
 

@@ -152,6 +152,7 @@ class SnarkjsSubprocess:
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
+        logger.debug(" ".join(cmd))
         if result.returncode != 0:
             raise RegexRunError(f"Error running with SnarkJS: {result.stdout}")
         
@@ -233,6 +234,8 @@ class CircomRunner(Runner):
     """
 
     def __init__(self, regex: str, kwargs: dict):
+        self._circom_path = ""
+        self._input_path = ""
         self._wasm_path = ""
         self._r1cs_path = ""
         self._zkey_path = ""
@@ -279,6 +282,8 @@ class CircomRunner(Runner):
             f.write("\n\n")
             f.write("component main {public [msg]} = " + f"{self._template_name}({self._circom_max_input_size});")
 
+        self._circom_path = circom_file_path
+
         # Compile the circom code to wasm
         logger.debug(f"Compiling circom code starts")
         self._wasm_path, self._r1cs_path = CircomSubprocess.compile(circom_file_path, self._link_path)
@@ -302,6 +307,8 @@ class CircomRunner(Runner):
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_file:
             tmp_file.write(json.dumps({"msg": numeric_input}).encode())
             input_path = tmp_file.name
+        
+        self._input_path = input_path
 
         # Skip if input is larger than circuit max input size
         if len(numeric_input) > self._circom_max_input_size:
@@ -311,8 +318,6 @@ class CircomRunner(Runner):
         logger.debug(f"Generating witness starts")
         witness_path = SnarkjsSubprocess.witness_gen(self._wasm_path, input_path)
         logger.debug(f"Generating witness ends")
-        # Remove input file
-        Path(input_path).unlink()
         
         # Also run the proving backend if the flag is set
         if self._run_the_prover:
@@ -336,16 +341,22 @@ class CircomRunner(Runner):
         # Remove all temporary files
         if self._wasm_path:
             shutil.rmtree(Path(self._wasm_path).parent)
-        Path.unlink(self._r1cs_path, True)
-        Path.unlink(self._zkey_path, True)
-        Path.unlink(self._vkey_path, True)
+        if self._circom_path: Path(self._circom_path).unlink(True)
+        if self._input_path: Path(self._input_path).unlink(True)
+        if self._r1cs_path: Path(self._r1cs_path).unlink(True)
+        if self._zkey_path: Path(self._zkey_path).unlink(True)
+        if self._vkey_path: Path(self._vkey_path).unlink(True)
     
-    def save(self, path):
+    def save(self, path) -> str:
+        circom_path = Path(self._circom_path)
+        input_path = Path(self._input_path)
         r1cs_path = Path(self._r1cs_path)
         wasm_path = Path(self._wasm_path)
         target_path = Path(path).resolve() / f"output_{r1cs_path.stem}"
         target_path.mkdir()
 
+        circom_path.replace(target_path / circom_path.name)
+        input_path.replace(target_path / input_path.name)
         r1cs_path.replace(target_path / r1cs_path.name)
         wasm_path.replace(target_path / wasm_path.name)
         
@@ -355,3 +366,5 @@ class CircomRunner(Runner):
 
             zkey_path.replace(target_path / zkey_path.name)
             vkey_path.replace(target_path / vkey_path.name)
+
+        return str(target_path)

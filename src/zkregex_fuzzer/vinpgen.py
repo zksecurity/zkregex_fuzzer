@@ -11,7 +11,7 @@ Supported generators:
 from abc import ABC, abstractmethod
 from typing import List
 
-from zkregex_fuzzer.utils import check_if_string_is_valid, grammar_fuzzer
+from zkregex_fuzzer.utils import check_if_string_is_valid, grammar_fuzzer, pretty_regex
 from zkregex_fuzzer.transformers import regex_to_grammar
 from zkregex_fuzzer.logger import logger
 
@@ -45,7 +45,7 @@ class ValidInputGenerator(ABC):
             attempts += 1
         raise ValueError("Failed to generate a valid input for the regex.")
 
-    def generate_many(self, n: int) -> List[str]:
+    def generate_many(self, n: int, max_input_size: int) -> List[str]:
         """
         Generate n valid inputs for the regex.
 
@@ -60,13 +60,17 @@ class ValidInputGenerator(ABC):
         while len(valid_inputs) < n and attempts < self._max_attempts:
             try:
                 logger.debug(f"Generating valid input {len(valid_inputs) + 1} of {n}.")
-                valid_inputs.append(self._generate())
-
+                generated = self._generate()
+                if max_input_size:
+                    if len(generated) <= max_input_size:
+                        valid_inputs.append(generated)
+                else:
+                    valid_inputs.append(generated)
             except ValueError:
                 pass
             attempts += 1
         if len(valid_inputs) == 0:
-            raise ValueError("Failed to generate any valid input for the regex.")
+            raise ValueError(f"Failed to generate any valid input for the regex: {pretty_regex(self.regex)}")
         #logger.debug(f"Generated valid inputs for the regex: {valid_inputs}.")
         logger.debug("Finished generating valid inputs.")
         return valid_inputs
