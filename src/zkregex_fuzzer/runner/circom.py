@@ -355,10 +355,10 @@ class CircomRunner(Runner):
         target_path = Path(path).resolve() / f"output_{r1cs_path.stem}"
         target_path.mkdir()
 
-        circom_path.replace(target_path / circom_path.name)
-        input_path.replace(target_path / input_path.name)
-        r1cs_path.replace(target_path / r1cs_path.name)
-        wasm_path.replace(target_path / wasm_path.name)
+        if self._circom_path: circom_path.replace(target_path / circom_path.name)
+        if self._input_path: input_path.replace(target_path / input_path.name)
+        if self._r1cs_path: r1cs_path.replace(target_path / r1cs_path.name)
+        if self._wasm_path: wasm_path.replace(target_path / wasm_path.name)
         
         if self._run_the_prover:
             zkey_path = Path(self._zkey_path)

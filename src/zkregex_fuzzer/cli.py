@@ -7,6 +7,7 @@ import os
 import random
 import uuid
 from pathlib import Path
+from zkregex_fuzzer.reproduce import reproduce
 from zkregex_fuzzer.fuzzer import fuzz_with_database, fuzz_with_grammar
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
 from zkregex_fuzzer.configs import TARGETS, VALID_INPUT_GENERATORS, GENERATORS
@@ -14,9 +15,9 @@ from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.runner.circom import CircomSubprocess, SnarkjsSubprocess, ZkRegexSubprocess
 
-def main():
+def fuzz_parser():
     parser = argparse.ArgumentParser(
-        description="Generate fuzzed regexes using The Fuzzing Book's GrammarFuzzer."
+        add_help=False
     )
     parser.add_argument(
         "--regex-num",
@@ -93,17 +94,26 @@ def main():
         type=str,
         help="Path to the ptau (powers-of-tau) file for the proving step"
     )
-    parser.add_argument(
-        "--logger-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="INFO",
-        help="Set the logger level (default: INFO)."
+    
+
+    return parser
+
+def reproduce_parser():
+    parser = argparse.ArgumentParser(
+        add_help=False
     )
 
-    args = parser.parse_args()
+    parser.add_argument(
+        "--path",
+        nargs="+",
+        type=str,
+        help="Path to the target directory output that want to be reproduced (support wildcard pattern).",
+        required=True
+    )
 
-    logger.setLevel(args.logger_level)
+    return parser
 
+def do_fuzz(args):
     if args.oracle == "valid" and not args.valid_input_generator:
         print("Valid input generator is required for valid oracle.")
         exit(1)
@@ -182,6 +192,41 @@ def main():
             inputs_num=args.inputs_num,
             kwargs=kwargs
         )
+
+def do_reproduce(args):
+    reproduce(args.path)
+
+def main():
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--logger-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logger level (default: INFO)."
+    )
+
+    subparser = parser.add_subparsers(dest="subcommand")
+    subparser.add_parser(
+        "fuzz",
+        help="Generate fuzzed regexes using The Fuzzing Book's GrammarFuzzer.", 
+        parents=[fuzz_parser()]
+    )
+    subparser.add_parser(
+        "reproduce",
+        help="Reproduce the bug that found by the fuzzer.",
+        parents=[reproduce_parser()]
+    )
+
+    args = parser.parse_args()
+
+
+    logger.setLevel(args.logger_level)
+
+    if args.subcommand == "fuzz":
+        do_fuzz(args)
+    elif args.subcommand == "reproduce":
+        do_reproduce(args)
     
 
 if __name__ == "__main__":

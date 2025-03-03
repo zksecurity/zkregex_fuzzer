@@ -3,7 +3,8 @@ Utility functions for the regex fuzzer.
 """
 
 import re
-
+import random
+import string
 from fuzzingbook.Grammars import simple_grammar_fuzzer, Grammar
 
 
@@ -97,6 +98,9 @@ def grammar_fuzzer(grammar: Grammar, start_symbol: str, max_nonterminals: int = 
                            start_symbol=start_symbol,
                            max_nonterminals=max_nonterminals,
                            max_expansion_trials=max_expansion_trials)
+
+def get_random_filename():
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
 
 def pretty_regex(regex: str):
     """
