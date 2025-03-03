@@ -25,8 +25,16 @@ zkregex-fuzzer --help
 
 ## Example Run
 
+### Fuzzing
+
 ```
-python src/zkregex_fuzzer/cli.py --fuzzer grammar --oracle valid --target python_re --valid-input-generator exrex
+python src/zkregex_fuzzer/cli.py fuzz --fuzzer grammar --oracle valid --target python_re --valid-input-generator exrex
+```
+
+### Reproducing bugs
+
+```
+python src/zkregex_fuzzer/cli.py reproduce --path output*
 ```
 
 # Test zkregex
@@ -43,7 +51,7 @@ You can follow the instructions from here:
 Finally, if we say that you install the above in the parent directory you can run the fuzzer with the following command:
 
 ```
-python src/zkregex_fuzzer/cli.py \
+python src/zkregex_fuzzer/cli.py fuzz \
     --oracle valid \
     --target circom \
     --valid-input-generator rstr \
