@@ -7,12 +7,14 @@ TODO:
 """
 
 import json
+import random
 from pathlib import Path
 from typing import Type, List, Union
 from enum import Enum
 from dataclasses import dataclass
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.runner import Runner, RegexCompileError, RegexRunError
+from zkregex_fuzzer.utils import get_random_filename
 
 class HarnessStatus(Enum):
     SUCCESS = 0 # Did not find a bug
@@ -40,26 +42,27 @@ def _return_harness_result(
         runner: Union[Runner, None],
         kwargs: dict,
     ):
-    if runner:
-        if result.status.name in status_to_save:
+    if result.status.name in status_to_save:
 
             metadata = {
-                "seed": kwargs.get("seed"),
-                "target": kwargs.get("target"),
-                "oracle": kwargs.get("oracle"),
-                "input_generator": kwargs.get("valid_input_generator"),
-                "fuzzer": kwargs.get("fuzzer"),
-                "regex_num": kwargs.get("regex_num"),
-                "inputs_num": kwargs.get("inputs_num"),
+                "config": kwargs,
+                "regex": result.regex,
+                "inputs": result.failed_inputs,
+                "status": result.status.name,
             }
 
-            dir_path = runner.save(output_path)
+            if runner:
+                dir_path = runner.save(output_path)
+            else:
+                dir_path = Path(output_path) / f"output_{get_random_filename()}"
+                dir_path.mkdir()
 
             metadata_json = json.dumps(metadata)
             metadata_path = Path(dir_path) / "metadata.json"
             with open(metadata_path.absolute(), "w") as f:
                 f.write(metadata_json)
 
+    if runner:
         runner.clean()
     
     return result
@@ -162,7 +165,7 @@ def harness(
         )
 
     return _return_harness_result(
-        HarnessResult(regex, inp_num, oracle, [], HarnessStatus.SUCCESS),
+        HarnessResult(regex, inp_num, oracle, inputs, HarnessStatus.SUCCESS),
         status_to_save,
         output_path,
         secondary_runner,
