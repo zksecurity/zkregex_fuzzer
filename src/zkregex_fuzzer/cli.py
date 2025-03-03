@@ -48,6 +48,11 @@ def fuzz_parser():
         help=f"The valid input generator to use for the fuzzer (options: {list(VALID_INPUT_GENERATORS.keys())})."
     )
     parser.add_argument(
+        "--seed",
+        default=str(uuid.uuid4()),
+        help=f"Seed for random generator (default: UUIDv4)"
+    )
+    parser.add_argument(
         "--save",
         choices=[status.name for status in HarnessStatus],
         nargs="*",
@@ -206,9 +211,7 @@ def do_fuzz(args):
     kwargs = vars(args)
 
     # set global seed
-    seed = str(uuid.uuid4())
-    kwargs['seed'] = seed
-    random.seed(seed)
+    random.seed(args.seed)
 
     if args.fuzzer == "grammar":
         fuzz_with_grammar(
