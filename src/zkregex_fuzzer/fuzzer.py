@@ -61,7 +61,7 @@ def fuzz_with_regexes(
     """
     Fuzz test with pre-seeded regexes.
     """
-    max_input_size = kwargs.get("circom_max_input_size", None)
+    max_input_size = kwargs.get("max_input_size", None)
     oracle, oracle_generator = oracle_params
     if oracle:
         generator = VALID_INPUT_GENERATORS[oracle_generator]

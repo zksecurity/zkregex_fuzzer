@@ -14,6 +14,7 @@ from zkregex_fuzzer.configs import TARGETS, VALID_INPUT_GENERATORS, GENERATORS
 from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.runner.circom import CircomSubprocess, SnarkjsSubprocess, ZkRegexSubprocess
+from zkregex_fuzzer.runner.subprocess import BarretenbergSubprocess, NoirSubprocess
 
 def fuzz_parser():
     parser = argparse.ArgumentParser(
@@ -71,7 +72,7 @@ def fuzz_parser():
         help="Maximum depth of recursion in the grammar (default: 5)."
     )
     parser.add_argument(
-        "--circom-max-input-size",
+        "--max-input-size",
         type=int,
         default=600,
         help="Maximum size of the circuit input (default: 600)."
@@ -94,6 +95,19 @@ def fuzz_parser():
         type=str,
         help="Path to the ptau (powers-of-tau) file for the proving step"
     )
+
+    parser.add_argument(
+        "--noir-prove",
+        action="store_true",
+        help="Run the proving and verification step with Barretenberg."
+    )
+
+    parser.add_argument(
+        "--logger-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logger level (default: INFO)."
+    )
     
 
     return parser
@@ -110,6 +124,12 @@ def reproduce_parser():
         help="Path to the target directory output that want to be reproduced (support wildcard pattern).",
         required=True
     )
+    parser.add_argument(
+        "--logger-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logger level (default: INFO)."
+    )
 
     return parser
 
@@ -120,13 +140,15 @@ def do_fuzz(args):
     
     if args.target == "circom":
         try:
-            circom_version = CircomSubprocess.get_installed_version()
-            snarkjs_version = SnarkjsSubprocess.get_installed_version()
             zk_regex_version = ZkRegexSubprocess.get_installed_version()
+            circom_version = CircomSubprocess.get_installed_version()
             print("-" * 80)
-            print(f"Circom: {circom_version}")
-            print(f"SnarkJS: {snarkjs_version}")
             print(f"zk-regex: {zk_regex_version}")
+            print(f"Circom: {circom_version}")
+            if args.circom_prove:
+                snarkjs_version = SnarkjsSubprocess.get_installed_version()
+                print(f"SnarkJS: {snarkjs_version}")
+
         except ValueError as e:
             print(e)
             exit(1)
@@ -155,6 +177,20 @@ def do_fuzz(args):
             if not ptau_path.exists():
                 print(f"Path to ptau file {ptau_path} does not exist.")
                 exit(1)
+
+    elif args.target == "noir":
+        try:
+            zk_regex_version = ZkRegexSubprocess.get_installed_version()
+            noir_version = NoirSubprocess.get_installed_version()
+            print("-" * 80)
+            print(f"zk-regex: {zk_regex_version}")
+            print(f"Noir: {noir_version}")
+            if args.noir_prove:
+                bb_version = BarretenbergSubprocess.get_installed_version()
+                print(f"Barretenberg: {bb_version}")
+        except ValueError as e:
+            print(e)
+            exit(1)
 
     print("-" * 80)
     print(f"Fuzzing with {args.fuzzer} fuzzer.")
@@ -199,12 +235,6 @@ def do_reproduce(args):
 def main():
     
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--logger-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="INFO",
-        help="Set the logger level (default: INFO)."
-    )
 
     subparser = parser.add_subparsers(dest="subcommand")
     subparser.add_parser(
