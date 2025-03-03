@@ -2,7 +2,6 @@
 Implements the logic for generating regexes using The Fuzzing Book's GrammarFuzzer.
 """
 
-import re
 from fuzzingbook.Grammars import simple_grammar_fuzzer, Grammar
 from zkregex_fuzzer.runner.base_runner import Runner
 from zkregex_fuzzer.transformers import regex_to_grammar
@@ -31,15 +30,8 @@ def fuzz_with_grammar(
     regex_generator = GrammarRegexGenerator(grammar, "<start>")
     regexes = regex_generator.generate_many(regex_num)
     logger.info(f"Generated {len(regexes)} regexes.")
-    oracle, oracle_generator = oracle_params
-    if oracle:
-        generator = VALID_INPUT_GENERATORS[oracle_generator]
-        logger.info(f"Generating {inputs_num} inputs for each regex.")
-        regexes_inputs = [generator(regex).generate_many(inputs_num) for regex in regexes]
-    else:
-        raise NotImplementedError("Oracle not implemented")
-
-    fuzz_with_regexes(regexes, regexes_inputs, target_runner, oracle, kwargs)
+    
+    fuzz_with_regexes(regexes, inputs_num, target_runner, oracle_params, kwargs)
 
 def fuzz_with_database(
         target_implementation: str,
@@ -56,26 +48,35 @@ def fuzz_with_database(
     regex_generator = DatabaseRegexGenerator()
     regexes = regex_generator.generate_many(regex_num)
     logger.info(f"Generated {len(regexes)} regexes.")
-    oracle, oracle_generator = oracle_params
-    if oracle:
-        generator = VALID_INPUT_GENERATORS[oracle_generator]
-        logger.info(f"Generating {inputs_num} inputs for each regex.")
-        regexes_inputs = [generator(regex).generate_many(inputs_num) for regex in regexes]
-    else:
-        raise NotImplementedError("Oracle not implemented")
     
-    fuzz_with_regexes(regexes, regexes_inputs, target_runner, oracle, kwargs)
+    fuzz_with_regexes(regexes, inputs_num, target_runner, oracle_params, kwargs)
 
 def fuzz_with_regexes(
         regexes: list[str],
-        regexes_inputs: list[str],
-        target_runner: Runner,
-        oracle: bool,
+        inputs_num: int,
+        target_runner: type[Runner],
+        oracle_params: tuple[bool, str],
         kwargs: dict,
     ):
     """
     Fuzz test with pre-seeded regexes.
     """
+    max_input_size = kwargs.get("circom_max_input_size", None)
+    oracle, oracle_generator = oracle_params
+    if oracle:
+        generator = VALID_INPUT_GENERATORS[oracle_generator]
+        logger.info(f"Generating {inputs_num} inputs for each regex.")
+        regexes_inputs = []
+        for regex in regexes:
+            try:
+                regex_inputs = generator(regex).generate_many(inputs_num, max_input_size)
+            except ValueError as e:
+                logger.warning(e)
+                regex_inputs = []
+            regexes_inputs.append(regex_inputs)
+    else:
+        raise NotImplementedError("Oracle not implemented")
+
     # We should use the PythonReRunner to check the validity of the regexes and the inputs.
     # If there is a bug in the PythonReRunner, we might not find it as we will think that 
     # either the regex or the input is invalid.

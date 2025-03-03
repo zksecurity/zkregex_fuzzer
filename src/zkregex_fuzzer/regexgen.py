@@ -78,7 +78,7 @@ class DatabaseRegexGenerator(RegexGenerator):
     Generate regexes using a database of regexes.
     """
 
-    def __init__(self, dir_path: str = None):
+    def __init__(self, dir_path: str = ""):
         dir_path = dir_path or self._get_default_path()
         self.database = self._get_database_from_path(dir_path)
 

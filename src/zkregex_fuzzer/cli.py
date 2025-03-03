@@ -4,10 +4,13 @@ Command-line interface to the grammar-based fuzzer for regex generation.
 
 import argparse
 import os
+import random
+import uuid
 from pathlib import Path
 from zkregex_fuzzer.fuzzer import fuzz_with_database, fuzz_with_grammar
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
 from zkregex_fuzzer.configs import TARGETS, VALID_INPUT_GENERATORS, GENERATORS
+from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.runner.circom import CircomSubprocess, SnarkjsSubprocess, ZkRegexSubprocess
 
@@ -43,7 +46,13 @@ def main():
         help=f"The valid input generator to use for the fuzzer (options: {list(VALID_INPUT_GENERATORS.keys())})."
     )
     parser.add_argument(
-        "--output",
+        "--save",
+        choices=[status.name for status in HarnessStatus],
+        nargs="*",
+        help="Save reproducible files according to the specified Harness status",
+    )
+    parser.add_argument(
+        "--save-output",
         type=str,
         default=os.getcwd(),
         help=f"The output path where the reproducible files will be stored (default: .)"
@@ -148,6 +157,13 @@ def main():
     print(f"Max depth: {args.grammar_max_depth}")
     print("-" * 80)
 
+    kwargs = vars(args)
+
+    # set global seed
+    seed = str(uuid.uuid4())
+    kwargs['seed'] = seed
+    random.seed(seed)
+
     if args.fuzzer == "grammar":
         fuzz_with_grammar(
             target_grammar="basic",
@@ -156,7 +172,7 @@ def main():
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
             max_depth=args.grammar_max_depth,
-            kwargs=vars(args)
+            kwargs=kwargs
         )
     elif args.fuzzer == "database":
         fuzz_with_database(
@@ -164,7 +180,7 @@ def main():
             oracle_params=(args.oracle == "valid", args.valid_input_generator),
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
-            kwargs=vars(args)
+            kwargs=kwargs
         )
     
 

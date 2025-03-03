@@ -6,7 +6,9 @@ TODO:
     In the future, we could pass invalid regexes and check if the secondary runner fails to compile.
 """
 
-from typing import Type, List
+import json
+from pathlib import Path
+from typing import Type, List, Union
 from enum import Enum
 from dataclasses import dataclass
 from zkregex_fuzzer.logger import logger
@@ -31,6 +33,37 @@ class HarnessResult:
     # Error message (if any)
     error_message: str = ""
 
+def _return_harness_result(
+        result: HarnessResult,
+        status_to_save: list,
+        output_path: str,
+        runner: Union[Runner, None],
+        kwargs: dict,
+    ):
+    if runner:
+        if result.status.name in status_to_save:
+
+            metadata = {
+                "seed": kwargs.get("seed"),
+                "target": kwargs.get("target"),
+                "oracle": kwargs.get("oracle"),
+                "input_generator": kwargs.get("valid_input_generator"),
+                "fuzzer": kwargs.get("fuzzer"),
+                "regex_num": kwargs.get("regex_num"),
+                "inputs_num": kwargs.get("inputs_num"),
+            }
+
+            dir_path = runner.save(output_path)
+
+            metadata_json = json.dumps(metadata)
+            metadata_path = Path(dir_path) / "metadata.json"
+            with open(metadata_path.absolute(), "w") as f:
+                f.write(metadata_json)
+
+        runner.clean()
+    
+    return result
+
 def harness(
         regex: str,
         primary_runner_cls: Type[Runner],
@@ -54,26 +87,53 @@ def harness(
     """
     regex = regex
     inp_num = len(inputs)
-    output_path = kwargs.get("output")
+    output_path = kwargs.get("save_output", "")
+    status_to_save = kwargs.get("save", None) or []
+    
     try:
         primary_runner = primary_runner_cls(regex, {})
     except RegexCompileError as e:
-        return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED, str(e))
+        return _return_harness_result(
+            HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED, str(e)),
+            status_to_save,
+            output_path,
+            None,
+            kwargs,
+        )
 
     try:
         secondary_runner = secondary_runner_cls(regex, kwargs)
     except RegexCompileError as e:
-        return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.COMPILE_ERROR, str(e))
+        return _return_harness_result(
+            HarnessResult(regex, inp_num, oracle, [], HarnessStatus.COMPILE_ERROR, str(e)),
+            status_to_save,
+            output_path,
+            None,
+            kwargs
+        )
 
     failed_inputs = []
+    
     for input in inputs:
         primary_runner_str = None
         try:
             primary_runner_status, primary_runner_str = primary_runner.match(input)
             if primary_runner_status != oracle:
-                return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED)
+                return _return_harness_result(
+                    HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED),
+                    status_to_save,
+                    output_path,
+                    None,
+                    kwargs
+                )
         except RegexRunError as e:
-            return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED, str(e))
+            return _return_harness_result(
+                HarnessResult(regex, inp_num, oracle, [], HarnessStatus.INVALID_SEED, str(e)),
+                status_to_save,
+                output_path,
+                None,
+                kwargs
+            )
         try:
             secondary_runner_status, secondary_runner_str = secondary_runner.match(input)
             if secondary_runner_status != oracle:
@@ -84,11 +144,27 @@ def harness(
                 # failed_inputs.append(input)
         except RegexRunError as e:
             secondary_runner.save(output_path)
-            return HarnessResult(regex, inp_num, oracle, [input], HarnessStatus.RUN_ERROR, str(e))
+            return _return_harness_result(
+                HarnessResult(regex, inp_num, oracle, [input], HarnessStatus.RUN_ERROR, str(e)),
+                status_to_save,
+                output_path,
+                secondary_runner,
+                kwargs
+            )
             
     if len(failed_inputs) > 0:
-        secondary_runner.save(output_path)
-        return HarnessResult(regex, inp_num, oracle, failed_inputs, HarnessStatus.FAILED)
+        return _return_harness_result(
+            HarnessResult(regex, inp_num, oracle, failed_inputs, HarnessStatus.FAILED),
+            status_to_save,
+            output_path,
+            secondary_runner,
+            kwargs
+        )
 
-    secondary_runner.clean()
-    return HarnessResult(regex, inp_num, oracle, [], HarnessStatus.SUCCESS)
+    return _return_harness_result(
+        HarnessResult(regex, inp_num, oracle, [], HarnessStatus.SUCCESS),
+        status_to_save,
+        output_path,
+        secondary_runner,
+        kwargs
+    )
