@@ -35,8 +35,7 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py38"
-lint.select = ["E", "F", "W"]
-lint.extend-select = ["I"]
+lint.select = ["E", "F", "W", "I"]
 lint.ignore = ["F401", "E501"]
 
 [tool.ruff.format]

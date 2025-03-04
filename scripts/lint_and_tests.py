@@ -23,7 +23,7 @@ def run_formatter() -> int:
 
 def run_tests() -> int:
     """Placeholder for future test execution."""
-    print("Running Tests (Placeholder)...")
+    print("Running Tests...")
     return run_command("pytest")
 
 
