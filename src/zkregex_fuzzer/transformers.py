@@ -3,13 +3,16 @@ Implement transformes.
 
 * regex_to_grammar: transforms a regex to a grammar
 
-TODO: 
+TODO:
     - Add more tests
     - Fix linting errors
 """
 import sre_parse
-from typing import Dict, List, Tuple, Any
-from fuzzingbook.Grammars import Grammar, Expansion
+import string
+from typing import Any, Dict, List, Tuple
+
+from fuzzingbook.Grammars import Expansion, Grammar
+
 
 def regex_to_grammar(regex: str) -> Grammar:
     """
@@ -35,7 +38,7 @@ def regex_to_grammar(regex: str) -> Grammar:
     Where we parse the regex concretely, and then convert it into a grammar.
     """
 
-    parsed_pattern = sre_parse.parse(regex)  
+    parsed_pattern = sre_parse.parse(regex)
     # Convert the parse object to a list of tokens
     # Typically the top-level is a SubPattern object that is iterable
     tokens = list(parsed_pattern)
@@ -48,9 +51,10 @@ def regex_to_grammar(regex: str) -> Grammar:
 
     return grammar
 
-def parse_tokens_into_rule(token_list: List[Tuple[Any, Any]], 
-                           grammar: Grammar, 
-                           rule_name: str) -> None:
+
+def parse_tokens_into_rule(
+    token_list: List[Tuple[Any, Any]], grammar: Grammar, rule_name: str
+) -> None:
     """
     Build expansions for `rule_name` in `grammar`, based on the given `token_list`.
     We'll produce a single or multiple expansions:
@@ -131,7 +135,7 @@ def parse_tokens_into_rule(token_list: List[Tuple[Any, Any]],
             expansion_parts.append(group_rule)
 
         elif token_type == sre_parse.BRANCH:
-            # union that is part of the sequence => can be complicated 
+            # union that is part of the sequence => can be complicated
             # Typically, top-level union is alone. But if we see it inline,
             # we can produce expansions with each branch. We'll do a naive approach:
             lit_rule = flush_literal_buffer()
@@ -202,7 +206,6 @@ def parse_tokens_into_rule(token_list: List[Tuple[Any, Any]],
 
 # ------------------------------------------------------------------------
 
-import string
 
 def handle_in_class(token_list_in, grammar: Grammar) -> str:
     """
@@ -212,7 +215,7 @@ def handle_in_class(token_list_in, grammar: Grammar) -> str:
     Then define a new rule that enumerates those chars.
     """
     chars = []
-    for (in_op, val) in token_list_in:
+    for in_op, val in token_list_in:
         if in_op == sre_parse.LITERAL:
             chars.append(chr(val))
         elif in_op == sre_parse.RANGE:
@@ -237,6 +240,7 @@ def handle_in_class(token_list_in, grammar: Grammar) -> str:
     grammar[rule_name] = chars
     return rule_name
 
+
 def handle_dot(grammar: Grammar) -> str:
     """
     Create or reuse a rule that enumerates which characters '.' can match.
@@ -249,7 +253,10 @@ def handle_dot(grammar: Grammar) -> str:
     grammar[dot_rule] = expansions
     return dot_rule
 
-def handle_max_repeat(sub_rule: str, min_count: int, max_count: int, grammar: Grammar) -> str:
+
+def handle_max_repeat(
+    sub_rule: str, min_count: int, max_count: int, grammar: Grammar
+) -> str:
     """
     Convert a repetition from min_count..max_count into expansions that unroll
     sub_rule repeated that many times. Large max_count might be clamped.
@@ -263,13 +270,16 @@ def handle_max_repeat(sub_rule: str, min_count: int, max_count: int, grammar: Gr
     rep_rule = new_rule_name(grammar, prefix="MREP")
     expansions = []
     for count in range(min_count, max_count + 1):
-        expansions.append(sub_rule * count)  # e.g. "<SUBRULE><SUBRULE>... <count times>"
+        expansions.append(
+            sub_rule * count
+        )  # e.g. "<SUBRULE><SUBRULE>... <count times>"
     # If min_count = 0, we also include the empty string as one expansion
     if min_count == 0:
         expansions.append("")
 
     grammar[rep_rule] = expansions
     return rep_rule
+
 
 # Utility for generating unique rule names
 def new_rule_name(grammar: Grammar, prefix="PART") -> str:

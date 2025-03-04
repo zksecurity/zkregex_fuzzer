@@ -5,14 +5,15 @@ Reproduce bugs found by the fuzzer.
 import glob
 import json
 from pathlib import Path
+
 from zkregex_fuzzer.configs import TARGETS
-from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.harness import HarnessStatus
+from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.runner import RegexCompileError, RegexRunError
 from zkregex_fuzzer.utils import pretty_regex
 
-def reproduce(path_list: list[str]):
 
+def reproduce(path_list: list[str]):
     for pattern in path_list:
         expanded_path = glob.glob(pattern)
         if not expanded_path:
@@ -29,11 +30,10 @@ def reproduce(path_list: list[str]):
                 continue
 
             simulate_harness(directory)
-            
-                    
-def simulate_harness(directory: Path):
 
-    with open(str(directory / "metadata.json"), 'r') as f:
+
+def simulate_harness(directory: Path):
+    with open(str(directory / "metadata.json"), "r") as f:
         metadata = json.loads(f.read())
 
     regex = metadata["regex"]
@@ -66,7 +66,6 @@ def simulate_harness(directory: Path):
 
     failed_inputs = []
     for input in inputs:
-
         try:
             runner_status, runner_str = runner.match(input)
             if runner_status != oracle:

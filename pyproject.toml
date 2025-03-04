@@ -24,5 +24,26 @@ dependencies = [
   "exrex",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pytest",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+lint.select = ["E", "F", "W"]
+lint.extend-select = ["I"]
+lint.ignore = ["F401", "E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
 [project.scripts]
 zkregex-fuzzer = "zkregex_fuzzer.cli:main"
+
+# Automatically find packages under `src/`
+[tool.setuptools.packages.find]
+where = ["src"]

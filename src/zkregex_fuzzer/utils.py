@@ -2,10 +2,11 @@
 Utility functions for the regex fuzzer.
 """
 
-import re
 import random
+import re
 import string
-from fuzzingbook.Grammars import simple_grammar_fuzzer, Grammar
+
+from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 
 
 def is_valid_regex(regex: str) -> bool:
@@ -41,7 +42,7 @@ def check_zkregex_rules_basic(regex: str) -> bool:
     # We'll define a function to find all occurrences of '^'.
     allowed_positions = set()
     # If the string starts with '^', that’s allowed
-    if len(regex) > 0 and regex[0] == '^':
+    if len(regex) > 0 and regex[0] == "^":
         allowed_positions.add(0)
 
     # If the string contains '(|^)', that means '^' is at position (idx+2)
@@ -90,17 +91,26 @@ def check_if_string_is_valid(regex: str, string: str) -> bool:
         return False
 
 
-def grammar_fuzzer(grammar: Grammar, start_symbol: str, max_nonterminals: int = 10, max_expansion_trials: int = 100) -> str:
+def grammar_fuzzer(
+    grammar: Grammar,
+    start_symbol: str,
+    max_nonterminals: int = 10,
+    max_expansion_trials: int = 100,
+) -> str:
     """
     Fuzz using a grammar.
     """
-    return simple_grammar_fuzzer(grammar,
-                           start_symbol=start_symbol,
-                           max_nonterminals=max_nonterminals,
-                           max_expansion_trials=max_expansion_trials)
+    return simple_grammar_fuzzer(
+        grammar,
+        start_symbol=start_symbol,
+        max_nonterminals=max_nonterminals,
+        max_expansion_trials=max_expansion_trials,
+    )
+
 
 def get_random_filename():
-    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    return "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
 
 def pretty_regex(regex: str):
     """

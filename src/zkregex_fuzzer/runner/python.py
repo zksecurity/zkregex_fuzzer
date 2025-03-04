@@ -3,7 +3,8 @@ Runner for Python re module.
 """
 
 import re
-from zkregex_fuzzer.runner.base_runner import Runner, RegexCompileError, RegexRunError
+
+from zkregex_fuzzer.runner.base_runner import RegexCompileError, RegexRunError, Runner
 
 
 class PythonReRunner(Runner):
@@ -35,9 +36,9 @@ class PythonReRunner(Runner):
             return (match_success, str_result)
         except re.error as e:
             raise RegexRunError(f"Error matching regex: {e}")
-        
+
     def save(self, path: str) -> str:
         return ""
-    
+
     def clean(self) -> None:
         return None
