@@ -23,6 +23,7 @@ dependencies = [
   "rstr",
   "exrex",
   "joblib",
+  "automata-lib",
 ]
 
 [project.optional-dependencies]
