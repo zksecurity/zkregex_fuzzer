@@ -1,5 +1,3 @@
-import re
-
 from automata.regex.regex import isequal
 from zkregex_fuzzer.dfa import (
     has_multiple_accepting_states_regex,
