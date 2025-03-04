@@ -37,7 +37,7 @@ class PythonReRunner(Runner):
             raise RegexRunError(f"Error matching regex: {e}")
         
     def save(self, path: str) -> str:
-        return super().save(path)
+        return ""
     
     def clean(self) -> None:
-        return super().clean()
+        return None
