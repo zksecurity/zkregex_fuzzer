@@ -100,7 +100,6 @@ def fuzz_parser():
         type=str,
         help="Path to the ptau (powers-of-tau) file for the proving step"
     )
-<<<<<<< HEAD
 
     parser.add_argument(
         "--noir-prove",
@@ -114,8 +113,6 @@ def fuzz_parser():
         default="INFO",
         help="Set the logger level (default: INFO)."
     )
-=======
->>>>>>> main
     
 
     return parser
@@ -123,7 +120,6 @@ def fuzz_parser():
 def reproduce_parser():
     parser = argparse.ArgumentParser(
         add_help=False
-<<<<<<< HEAD
     )
 
     parser.add_argument(
@@ -140,18 +136,6 @@ def reproduce_parser():
         help="Set the logger level (default: INFO)."
     )
 
-=======
-    )
-
-    parser.add_argument(
-        "--path",
-        nargs="+",
-        type=str,
-        help="Path to the target directory output that want to be reproduced (support wildcard pattern).",
-        required=True
-    )
-
->>>>>>> main
     return parser
 
 def do_fuzz(args):
@@ -227,13 +211,7 @@ def do_fuzz(args):
     kwargs = vars(args)
 
     # set global seed
-<<<<<<< HEAD
     random.seed(args.seed)
-=======
-    seed = str(uuid.uuid4())
-    kwargs['seed'] = seed
-    random.seed(seed)
->>>>>>> main
 
     if args.fuzzer == "grammar":
         fuzz_with_grammar(
@@ -260,24 +238,11 @@ def do_reproduce(args):
 def main():
     
     parser = argparse.ArgumentParser()
-<<<<<<< HEAD
-=======
-    parser.add_argument(
-        "--logger-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="INFO",
-        help="Set the logger level (default: INFO)."
-    )
->>>>>>> main
 
     subparser = parser.add_subparsers(dest="subcommand")
     subparser.add_parser(
         "fuzz",
-<<<<<<< HEAD
-        help="Generate fuzzed regexes using The Fuzzing Book's GrammarFuzzer.", 
-=======
         help="Fuzz the target regex implementation.", 
->>>>>>> main
         parents=[fuzz_parser()]
     )
     subparser.add_parser(
