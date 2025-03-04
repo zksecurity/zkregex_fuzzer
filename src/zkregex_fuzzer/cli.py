@@ -49,7 +49,7 @@ def fuzz_parser():
     parser.add_argument(
         "--save",
         choices=[status.name for status in HarnessStatus],
-        nargs="*",
+        nargs="+",
         help="Save reproducible files according to the specified Harness status",
     )
     parser.add_argument(
@@ -209,7 +209,7 @@ def main():
     subparser = parser.add_subparsers(dest="subcommand")
     subparser.add_parser(
         "fuzz",
-        help="Generate fuzzed regexes using The Fuzzing Book's GrammarFuzzer.", 
+        help="Fuzz the target regex implementation.", 
         parents=[fuzz_parser()]
     )
     subparser.add_parser(
