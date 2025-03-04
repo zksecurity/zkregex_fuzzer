@@ -50,12 +50,14 @@ class Runner(ABC):
         """
         pass
 
+    @abstractmethod
     def clean(self) -> None:
         """
         Clean any produced temporary files.
         """
         pass
 
+    @abstractmethod
     def save(self, path: str) -> str:
         """
         Save any produced temporary files.
