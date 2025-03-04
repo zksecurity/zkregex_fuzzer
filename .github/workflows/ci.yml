@@ -14,10 +14,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y graphviz graphviz-dev
+
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.8"  
+          python-version: "3.13"  
 
       - name: Install dependencies
         run: |
@@ -25,5 +29,5 @@ jobs:
           pip install -e .[dev]  
 
       - name: Run Linter & Tests
-        run: python scripts/lint_and_test.py
+        run: python scripts/lint_and_tests.py
 

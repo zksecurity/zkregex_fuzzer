@@ -11,7 +11,7 @@ authors = [
 ]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.13"
 keywords = ["fuzzing", "grammar", "zkregex"]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -19,7 +19,7 @@ classifiers = [
   "Operating System :: OS Independent"
 ]
 dependencies = [
-  "fuzzingbook>=0.11.0",
+  "fuzzingbook",
   "rstr",
   "exrex",
 ]
