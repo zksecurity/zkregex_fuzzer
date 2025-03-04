@@ -2,14 +2,17 @@
 Runner for Circom.
 """
 
-import json, tempfile, subprocess, shutil
+import json
+import shutil
+import tempfile
 from pathlib import Path
+
 from zkregex_fuzzer.logger import logger
-from zkregex_fuzzer.runner.base_runner import Runner, RegexCompileError, RegexRunError
+from zkregex_fuzzer.runner.base_runner import RegexRunError, Runner
 from zkregex_fuzzer.runner.subprocess import (
-    ZkRegexSubprocess,
     CircomSubprocess,
     SnarkjsSubprocess,
+    ZkRegexSubprocess,
 )
 
 
@@ -40,7 +43,7 @@ class CircomRunner(Runner):
         """
         Compile the regex.
         """
-        logger.debug(f"Compiling regex starts")
+        logger.debug("Compiling regex starts")
         # Create JSON for the regex for zk-regex
         base_json = {"parts": []}
         # TODO: handle the following if is_public is set to True:
@@ -57,11 +60,11 @@ class CircomRunner(Runner):
         circom_file_path = str(Path(self._dir_path) / "regex.circom")
 
         # Call zk-regex to generate the circom code
-        logger.debug(f"Generating circom code starts")
+        logger.debug("Generating circom code starts")
         ZkRegexSubprocess.compile_to_circom(
             json_file_path, circom_file_path, self._template_name
         )
-        logger.debug(f"Generating circom code ends")
+        logger.debug("Generating circom code ends")
 
         # Append the circom file to include the main function
         with open(circom_file_path, "a") as f:
@@ -74,11 +77,11 @@ class CircomRunner(Runner):
         self._circom_path = circom_file_path
 
         # Compile the circom code to wasm
-        logger.debug(f"Compiling circom code starts")
+        logger.debug("Compiling circom code starts")
         self._wasm_path, self._r1cs_path = CircomSubprocess.compile(
             circom_file_path, self._link_path
         )
-        logger.debug(f"Compiling circom code ends")
+        logger.debug("Compiling circom code ends")
 
         # Also setup the proving and verification key if the flag is set
         if self._run_the_prover:
@@ -86,13 +89,13 @@ class CircomRunner(Runner):
                 self._r1cs_path, self._ptau_path
             )
             self._vkey_path = SnarkjsSubprocess.export_verification_key(self._zkey_path)
-        logger.debug(f"Compiling regex ends")
+        logger.debug("Compiling regex ends")
 
     def match(self, input: str) -> tuple[bool, str]:
         """
         Match the regex on an input.
         """
-        logger.debug(f"Matching regex starts")
+        logger.debug("Matching regex starts")
         # Convert input to list of decimal ASCII values and pad input with zeroes
         numeric_input = [ord(c) for c in input] + [0] * (
             self._circom_max_input_size - len(input)
@@ -110,9 +113,9 @@ class CircomRunner(Runner):
             raise RegexRunError(f"Input too large for input: {len(numeric_input)}")
 
         # Generate the witness
-        logger.debug(f"Generating witness starts")
+        logger.debug("Generating witness starts")
         witness_path = SnarkjsSubprocess.witness_gen(self._wasm_path, input_path)
-        logger.debug(f"Generating witness ends")
+        logger.debug("Generating witness ends")
 
         # Also run the proving backend if the flag is set
         if self._run_the_prover:
@@ -121,7 +124,7 @@ class CircomRunner(Runner):
             # Verification
             if not SnarkjsSubprocess.verify(self._vkey_path, proof, public_input):
                 raise RegexRunError(
-                    f"Error running with SnarkJS: Proof verification failed"
+                    "Error running with SnarkJS: Proof verification failed"
                 )
 
         # Extract from the witness the result of the match
@@ -131,7 +134,7 @@ class CircomRunner(Runner):
 
         # Return the output of the match
         output = int(result[1])
-        logger.debug(f"Matching regex ends")
+        logger.debug("Matching regex ends")
         return output == 1, ""
 
     def clean(self):

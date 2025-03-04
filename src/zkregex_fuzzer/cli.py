@@ -14,8 +14,13 @@ from zkregex_fuzzer.grammar import REGEX_GRAMMAR
 from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.reproduce import reproduce
-from zkregex_fuzzer.runner.circom import CircomSubprocess, SnarkjsSubprocess, ZkRegexSubprocess
+from zkregex_fuzzer.runner.circom import (
+    CircomSubprocess,
+    SnarkjsSubprocess,
+    ZkRegexSubprocess,
+)
 from zkregex_fuzzer.runner.subprocess import BarretenbergSubprocess, NoirSubprocess
+
 
 def fuzz_parser():
     parser = argparse.ArgumentParser(add_help=False)
@@ -49,7 +54,7 @@ def fuzz_parser():
     parser.add_argument(
         "--seed",
         default=str(uuid.uuid4()),
-        help=f"Seed for random generator (default: UUIDv4)"
+        help="Seed for random generator (default: UUIDv4)",
     )
     parser.add_argument(
         "--save",
@@ -103,16 +108,15 @@ def fuzz_parser():
     parser.add_argument(
         "--noir-prove",
         action="store_true",
-        help="Run the proving and verification step with Barretenberg."
+        help="Run the proving and verification step with Barretenberg.",
     )
 
     parser.add_argument(
         "--logger-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         default="INFO",
-        help="Set the logger level (default: INFO)."
+        help="Set the logger level (default: INFO).",
     )
-    
 
     return parser
 
@@ -131,7 +135,7 @@ def reproduce_parser():
         "--logger-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         default="INFO",
-        help="Set the logger level (default: INFO)."
+        help="Set the logger level (default: INFO).",
     )
 
     return parser

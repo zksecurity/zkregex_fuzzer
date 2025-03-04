@@ -2,11 +2,19 @@
 Runner for Circom.
 """
 
-import json, tempfile, subprocess, shutil
+import json
+import shutil
+import tempfile
 from pathlib import Path
+
 from zkregex_fuzzer.logger import logger
-from zkregex_fuzzer.runner.base_runner import Runner, RegexCompileError, RegexRunError
-from zkregex_fuzzer.runner.subprocess import BarretenbergSubprocess, NoirSubprocess, ZkRegexSubprocess
+from zkregex_fuzzer.runner.base_runner import RegexRunError, Runner
+from zkregex_fuzzer.runner.subprocess import (
+    BarretenbergSubprocess,
+    NoirSubprocess,
+    ZkRegexSubprocess,
+)
+
 
 class NoirRunner(Runner):
     """
@@ -23,7 +31,6 @@ class NoirRunner(Runner):
         self.identifer = ""
 
     def _construct_working_dir(self) -> str:
-
         dir_path = Path(self._path)
 
         # create nargo.toml
@@ -31,32 +38,33 @@ class NoirRunner(Runner):
             content = '[package]\nname = "test_regex"\ntype = "bin"\nauthors = [""]\n\n[dependencies]'
             f.write(content)
 
-        src_path = (dir_path / "src")
+        src_path = dir_path / "src"
         src_path.mkdir()
 
         # create src/main.nr
         with open(src_path / "main.nr", "w") as f:
             main_func = "mod regex;\n\n"
-            main_func += f"global MAX_INPUT_SIZE: u32 = {self._noir_max_input_size};\n\n"
-            main_func += "fn main(input: [u8; MAX_INPUT_SIZE]) { regex::regex_match(input); }"
+            main_func += (
+                f"global MAX_INPUT_SIZE: u32 = {self._noir_max_input_size};\n\n"
+            )
+            main_func += (
+                "fn main(input: [u8; MAX_INPUT_SIZE]) { regex::regex_match(input); }"
+            )
             f.write(main_func)
 
         return str(src_path)
-
 
     def compile(self, regex: str) -> None:
         """
         Compile the regex.
         """
-        logger.debug(f"Compiling regex starts")
+        logger.debug("Compiling regex starts")
 
         # Setup main directory
         src_path = self._construct_working_dir()
 
-        # Create JSON for the regex for zk-regex 
-        base_json = {
-            "parts": []
-        }
+        # Create JSON for the regex for zk-regex
+        base_json = {"parts": []}
         # TODO: handle the following if is_public is set to True:
         # the section containing this ^ must be non-public (is_public: false).
         regex_parts = {"regex_def": regex, "is_public": False}
@@ -65,62 +73,66 @@ class NoirRunner(Runner):
 
         # Write the JSON to a temporary file
         json_file_path = str(Path(self._path) / "regex.json")
-        with open(json_file_path, 'wb') as f:
+        with open(json_file_path, "wb") as f:
             f.write(regex_json.encode())
 
         noir_file_path = str(Path(src_path) / "regex.nr")
 
         # Call zk-regex to generate the noir code
-        logger.debug(f"Generating noir code starts")
+        logger.debug("Generating noir code starts")
         ZkRegexSubprocess.compile_to_noir(json_file_path, noir_file_path)
-        logger.debug(f"Generating noir code ends")
+        logger.debug("Generating noir code ends")
 
         # Compile the noir code (nargo check)
-        logger.debug(f"Compiling noir code starts")
+        logger.debug("Compiling noir code starts")
         NoirSubprocess.compile(self._path)
-        logger.debug(f"Compiling noir code ends")
+        logger.debug("Compiling noir code ends")
 
         if self._run_the_prover:
             BarretenbergSubprocess.export_verification_key(self._path)
 
-        logger.debug(f"Compiling regex ends")        
+        logger.debug("Compiling regex ends")
 
     def match(self, input: str) -> tuple[bool, str]:
         """
         Match the regex on an input.
         """
 
-        logger.debug(f"Matching regex starts")
+        logger.debug("Matching regex starts")
         # Convert input to list of decimal ASCII values and pad input with zeroes
-        numeric_input = [ord(c) for c in input] + [0] * (self._noir_max_input_size - len(input))
-        
+        numeric_input = [ord(c) for c in input] + [0] * (
+            self._noir_max_input_size - len(input)
+        )
+
         # Write input to a Prover.toml
         with open(Path(self._path) / "Prover.toml", "w") as f:
             f.write(f"input = {str(numeric_input)}")
-        
+
         # Skip if input is larger than noir max input size
         if len(numeric_input) > self._noir_max_input_size:
-            raise RegexRunError(f"Input too large for input: {len(numeric_input)}")
-        
+            raise RegexRunError("Input too large for input: {len(numeric_input)}")
+
         # Generate the witness
-        logger.debug(f"Generating witness starts")
+        logger.debug("Generating witness starts")
         match = NoirSubprocess.witness_gen(self._path)
-        logger.debug(f"Generating witness ends")
+        logger.debug("Generating witness ends")
 
         if self._run_the_prover and match:
             # prove
             BarretenbergSubprocess.prove(self._path)
             # verify
             if not BarretenbergSubprocess.verify(self._path):
-                raise RegexRunError(f"Error running with Barretenberg: Proof verification failed")
+                raise RegexRunError(
+                    "Error running with Barretenberg: Proof verification failed"
+                )
 
         return match, ""
-    
+
     def clean(self):
         # Remove all temporary files
         if Path(self._path).exists():
             shutil.rmtree(self._path)
-    
+
     def save(self, path) -> str:
         base_path = Path(self._path)
         target_path = Path(path).resolve()

@@ -1,15 +1,15 @@
 import json
+import re
 import shutil
 import subprocess
-import re
 from pathlib import Path
 
 from zkregex_fuzzer.logger import logger
+
 from .base_runner import RegexCompileError, RegexRunError
 
 
 class ZkRegexSubprocess:
-
     @classmethod
     def get_installed_version(cls) -> str:
         """
@@ -82,7 +82,6 @@ class ZkRegexSubprocess:
 
 
 class CircomSubprocess:
-
     @classmethod
     def get_installed_version(cls) -> str:
         """
@@ -121,7 +120,6 @@ class CircomSubprocess:
 
 
 class SnarkjsSubprocess:
-
     @classmethod
     def get_installed_version(cls) -> str:
         """
@@ -264,7 +262,6 @@ class SnarkjsSubprocess:
 
 
 class NoirSubprocess:
-
     @classmethod
     def get_installed_version(cls) -> str:
         """
@@ -307,7 +304,6 @@ class NoirSubprocess:
 
 
 class BarretenbergSubprocess:
-
     @classmethod
     def get_installed_version(cls) -> str:
         """

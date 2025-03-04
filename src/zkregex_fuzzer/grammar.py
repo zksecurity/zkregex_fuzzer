@@ -19,6 +19,7 @@ Note that all international characters are supported.
 TODO:
  - Add more grammars.
 """
+
 import string
 from typing import List
 
