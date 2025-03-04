@@ -13,14 +13,21 @@ TODO:
 - Add a DFA-based generator?
 """
 
-import random, pathlib, glob, json
+import glob
+import json
+import pathlib
+import random
 from abc import ABC, abstractmethod
 from typing import List
 
-from zkregex_fuzzer.utils import is_valid_regex, check_zkregex_rules_basic
-from zkregex_fuzzer.utils import grammar_fuzzer
-from zkregex_fuzzer.logger import logger
 from fuzzingbook.Grammars import Grammar
+
+from zkregex_fuzzer.logger import logger
+from zkregex_fuzzer.utils import (
+    check_zkregex_rules_basic,
+    grammar_fuzzer,
+    is_valid_regex,
+)
 
 
 class RegexGenerator(ABC):
@@ -61,7 +68,13 @@ class GrammarRegexGenerator(RegexGenerator):
     Generate regexes using a grammar.
     """
 
-    def __init__(self, grammar: Grammar, start_symbol: str, max_nonterminals: int = 10, max_expansion_trials: int = 100):
+    def __init__(
+        self,
+        grammar: Grammar,
+        start_symbol: str,
+        max_nonterminals: int = 10,
+        max_expansion_trials: int = 100,
+    ):
         self.grammar = grammar
         self.start_symbol = start_symbol
         self.max_nonterminals = max_nonterminals
@@ -71,7 +84,13 @@ class GrammarRegexGenerator(RegexGenerator):
         """
         Generate a regex using a grammar.
         """
-        return grammar_fuzzer(self.grammar, self.start_symbol, self.max_nonterminals, self.max_expansion_trials)
+        return grammar_fuzzer(
+            self.grammar,
+            self.start_symbol,
+            self.max_nonterminals,
+            self.max_expansion_trials,
+        )
+
 
 class DatabaseRegexGenerator(RegexGenerator):
     """
@@ -100,7 +119,7 @@ class DatabaseRegexGenerator(RegexGenerator):
                 content = json.loads(f.read())
                 regex = ""
                 for part in content["parts"]:
-                    regex += r"{}".format(part['regex_def'])
+                    regex += r"{}".format(part["regex_def"])
 
                 database.append(regex)
 
@@ -111,9 +130,8 @@ class DatabaseRegexGenerator(RegexGenerator):
         Generate a regex using a database.
         """
         return random.choice(self.database)
-    
+
     def generate_many(self, num):
-        
         if num >= len(self.database):
             return self.database
         else:
@@ -124,5 +142,5 @@ class DatabaseRegexGenerator(RegexGenerator):
                     if generated not in result:
                         result.append(generated)
                         break
-                
+
             return result

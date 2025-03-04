@@ -12,7 +12,7 @@ source venv/bin/activate
 Next, you can run the fuzzer locally:
 
 ```
-pip install -r requirements.txt
+pip install -e .
 python src/zkregex_fuzzer/cli.py --help
 ```
 
@@ -21,6 +21,18 @@ or you can install it:
 ```
 pip install -e .
 zkregex-fuzzer --help
+```
+
+## Linting and tests
+
+```
+pip install -e '.[dev]'
+# Either run manually
+ruff check .
+ruff format .
+pytest
+# or through the script
+python scripts/lint_and_tests.py
 ```
 
 ## Example Run

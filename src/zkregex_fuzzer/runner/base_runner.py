@@ -16,6 +16,7 @@ class RegexCompileError(Exception):
     """
     Exception raised when a regex cannot be compiled.
     """
+
     pass
 
 
@@ -23,6 +24,7 @@ class RegexRunError(Exception):
     """
     Exception raised when a regex cannot be run.
     """
+
     pass
 
 
@@ -62,5 +64,4 @@ class Runner(ABC):
         """
         Save any produced temporary files.
         """
-        return ""
-
+        pass
