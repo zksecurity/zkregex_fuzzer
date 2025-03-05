@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 
 from zkregex_fuzzer.configs import GENERATORS, TARGETS, VALID_INPUT_GENERATORS
-from zkregex_fuzzer.fuzzer import fuzz_with_database, fuzz_with_grammar
+from zkregex_fuzzer.fuzzer import fuzz_with_database, fuzz_with_dfa, fuzz_with_grammar
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
 from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
@@ -234,6 +234,14 @@ def do_fuzz(args):
         )
     elif args.fuzzer == "database":
         fuzz_with_database(
+            target_implementation=args.target,
+            oracle_params=(args.oracle == "valid", args.valid_input_generator),
+            regex_num=args.regex_num,
+            inputs_num=args.inputs_num,
+            kwargs=kwargs,
+        )
+    elif args.fuzzer == "dfa":
+        fuzz_with_dfa(
             target_implementation=args.target,
             oracle_params=(args.oracle == "valid", args.valid_input_generator),
             regex_num=args.regex_num,
