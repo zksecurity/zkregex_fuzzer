@@ -7,7 +7,9 @@ import re
 import string
 
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
+
 from zkregex_fuzzer.dfa import wrapped_has_one_accepting_state_regex
+
 
 def is_valid_regex(regex: str) -> bool:
     """
@@ -31,8 +33,8 @@ def has_lazy_quantifier(pattern: str) -> bool:
     # Regex to search for the typical lazy quantifier patterns:
     #   *?   +?   ??   {m,n}?
     # We'll assume m,n are simple digit sets, e.g. {2,5}
-    lazy_check = re.compile(r'(\*\?)|(\+\?)|(\?\?)|\{\d+(,\d+)?\}\?')
-    
+    lazy_check = re.compile(r"(\*\?)|(\+\?)|(\?\?)|\{\d+(,\d+)?\}\?")
+
     match = lazy_check.search(pattern)
     return bool(match)
 
@@ -49,7 +51,7 @@ def correct_carret_position(regex: str) -> bool:
     more advanced regex syntax. For most simple usage, however, it suffices.
     """
     # Find all occurrences of '^' that are not escaped
-    caret_positions = [match.start() for match in re.finditer(r'(?<!\\)\^', regex)]
+    caret_positions = [match.start() for match in re.finditer(r"(?<!\\)\^", regex)]
     if len(caret_positions) == 0:
         return True
     # Check each position
@@ -60,22 +62,27 @@ def correct_carret_position(regex: str) -> bool:
             status = True
             continue
         # We have '^' at the end of the regex
-        if pos+1 == len(regex) and len(regex) > 1:
+        if pos + 1 == len(regex) and len(regex) > 1:
             continue
         # Let's check if the '^' is in a group that is at the start of the regex
         # and before '^' there is a '|' and before '|' there is either nothing or \r or \n until
         # the beginning of the group
-        if regex[pos-1] == '|' and regex[pos+1] == ')' and regex[0] == '(' and bool(re.match(r'^\s*', regex[1:pos-1])):
+        if (
+            regex[pos - 1] == "|"
+            and regex[pos + 1] == ")"
+            and regex[0] == "("
+            and bool(re.match(r"^\s*", regex[1 : pos - 1]))
+        ):
             status = True
             continue
         # Let's check if the '^' is in a negated character class
-        if regex[pos-1] == '[':
+        if regex[pos - 1] == "[":
             status = True
             continue
         if status is False:
             return False
     return status
-    
+
 
 def check_zkregex_rules_basic(regex: str) -> tuple[bool, bool]:
     """
@@ -96,7 +103,7 @@ def check_zkregex_rules_basic(regex: str) -> tuple[bool, bool]:
 
     # 3) Check that the regex has exactly one accepting state
     if not wrapped_has_one_accepting_state_regex(regex):
-        return False, False  
+        return False, False
 
     return True, True
 

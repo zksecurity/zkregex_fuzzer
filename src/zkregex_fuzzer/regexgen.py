@@ -24,6 +24,7 @@ from fuzzingbook.Grammars import Grammar
 
 from zkregex_fuzzer.dfa import (
     generate_random_dfa,
+    regex_to_dfa,
     transform_dfa_to_regex,
 )
 from zkregex_fuzzer.logger import logger
