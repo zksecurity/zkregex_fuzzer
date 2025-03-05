@@ -385,3 +385,102 @@ def generate_random_dfa(
         dfa = DFA.from_nfa(nfa, minify=True)
 
     return dfa
+
+
+def dfa_string_matching(
+    regex: str,
+    max_length: int = 10,
+) -> str:
+    """
+    Convert `regex` to a DFA using automata-lib, then randomly generate a string
+    that the DFA accepts. Returns a string that the DFA accepts.
+    """
+
+    # Step 1: Convert to NFA or directly to DFA
+    dfa = regex_to_dfa(regex)
+
+    # Step 2: Determine for each state if acceptance is possible from that state
+    # We'll do a BFS backward from each final state to mark reachable states.
+    can_reach_accept = _compute_accept_reachability(dfa)
+
+    # Step 3: Do a random walk
+    s = _random_walk_dfa(dfa, can_reach_accept, max_length)
+    if s is None:
+        raise ValueError("Failed to generate a string that the DFA accepts.")
+    return s
+
+
+def _compute_accept_reachability(dfa: DFA) -> dict:
+    """
+    For each state, store whether it's possible to reach a final state.
+    Returns a dict: state -> bool
+    """
+    # Start from final states and do BFS/DFS backwards:
+    # We'll create a graph reversed: from each state, we see where it can come from.
+    reverse_graph = {s: [] for s in dfa.states}
+    for s in dfa.states:
+        for sym, t in dfa.transitions[s].items():
+            reverse_graph[t].append((s, sym))
+
+    can_reach = {s: False for s in dfa.states}
+    # Mark final states as can_reach = True
+    queue = list(dfa.final_states)
+    for f in queue:
+        can_reach[f] = True
+
+    # BFS
+    idx = 0
+    while idx < len(queue):
+        current = queue[idx]
+        idx += 1
+        for prev_state, _symbol in reverse_graph[current]:
+            if not can_reach[prev_state]:
+                can_reach[prev_state] = True
+                queue.append(prev_state)
+
+    return can_reach
+
+
+def _random_walk_dfa(
+    dfa: DFA, can_reach_accept: dict, max_length: int
+) -> Optional[str]:
+    """
+    Start at dfa.initial_state, randomly choose transitions that lead to states
+    from which a final state is reachable, until we reach a final or exceed max_length.
+    Note that max_length is not a hard limit, but rather a wanted length.
+    Return the accepted string or None if we can't produce one.
+    """
+    hard_limit = 100
+    current_state = dfa.initial_state
+    out = []
+    # We'll limit the number of steps to avoid infinite loops
+    for length_counter in range(hard_limit):
+        # If current_state is final, maybe stop or continue?
+        # We'll do a random 50% chance to stop if final, producing a short string.
+        if current_state in dfa.final_states:
+            if length_counter >= max_length or random.random() < 0.5:
+                # 50% chance to end early if final
+                return "".join(out)
+        # gather possible transitions that lead to can_reach_accept state
+        next_options = [
+            (symbol, dest)
+            for symbol, dest in dfa.transitions[current_state].items()
+            if can_reach_accept[dest]
+        ]
+
+        if not next_options:
+            # no valid transitions, so if we are final we can stop; else give up
+            if current_state in dfa.final_states:
+                return "".join(out)
+            else:
+                return None
+
+        # choose a random transition
+        symbol, dest = random.choice(next_options)
+        out.append(symbol)
+        current_state = dest
+
+    # If we are here, we've reached max_length. Accept if the state is final
+    if current_state in dfa.final_states:
+        return "".join(out)
+    return None
