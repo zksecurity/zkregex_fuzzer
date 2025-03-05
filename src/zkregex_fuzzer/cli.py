@@ -87,6 +87,12 @@ def fuzz_parser():
         help="Maximum size of the circuit input (default: 600).",
     )
     parser.add_argument(
+        "--threads",
+        type=int,
+        default=1,
+        help="Number of parallel threads to use for the fuzzer (default: 1).",
+    )
+    parser.add_argument(
         "--circom-library",
         nargs="*",
         type=str,

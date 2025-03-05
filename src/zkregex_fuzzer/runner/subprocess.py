@@ -139,7 +139,8 @@ class SnarkjsSubprocess:
         """
 
         base_name = Path(circuit_path).stem
-        output_path = str(Path(circuit_path).parent / f"{base_name}.zkey")
+        base_dir = Path(circuit_path).parent
+        output_path = str(base_dir / f"{base_name}.zkey")
 
         cmd = ["snarkjs", "groth16", "setup", circuit_path, ptau_path, output_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -156,7 +157,8 @@ class SnarkjsSubprocess:
         """
 
         base_name = Path(zkey_path).stem
-        output_path = str(Path(zkey_path).parent / f"{base_name}.vkey.json")
+        base_dir = Path(zkey_path).parent
+        output_path = str(base_dir / f"{base_name}.vkey.json")
 
         cmd = ["snarkjs", "zkey", "export", "verificationkey", zkey_path, output_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -173,7 +175,8 @@ class SnarkjsSubprocess:
         """
 
         base_name = Path(wasm_file_path).stem
-        output_path = str(Path(input_path).parent / f"{base_name}.wtns")
+        base_dir = Path(wasm_file_path).parent
+        output_path = str(base_dir / f"{base_name}.wtns")
 
         cmd = ["snarkjs", "wtns", "calculate", wasm_file_path, input_path, output_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -191,8 +194,9 @@ class SnarkjsSubprocess:
         """
 
         base_name = Path(zkey_path).stem
-        proof_path = str(Path(witness_path).parent / f"{base_name}.proof.json")
-        public_input_path = str(Path(witness_path).parent / f"{base_name}.public.json")
+        base_dir = Path(zkey_path).parent
+        proof_path = str(base_dir / f"{base_name}.proof.json")
+        public_input_path = str(base_dir / f"{base_name}.public.json")
 
         cmd = [
             "snarkjs",
