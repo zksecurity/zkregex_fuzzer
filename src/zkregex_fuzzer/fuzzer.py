@@ -8,7 +8,11 @@ from joblib import Parallel, delayed
 from zkregex_fuzzer.configs import GRAMMARS, TARGETS, VALID_INPUT_GENERATORS
 from zkregex_fuzzer.harness import HarnessResult, HarnessStatus, harness
 from zkregex_fuzzer.logger import dynamic_filter, logger
-from zkregex_fuzzer.regexgen import DatabaseRegexGenerator, GrammarRegexGenerator
+from zkregex_fuzzer.regexgen import (
+    DatabaseRegexGenerator,
+    DFARegexGenerator,
+    GrammarRegexGenerator,
+)
 from zkregex_fuzzer.runner import PythonReRunner
 from zkregex_fuzzer.runner.base_runner import Runner
 from zkregex_fuzzer.transformers import regex_to_grammar
@@ -50,6 +54,25 @@ def fuzz_with_database(
     target_runner = TARGETS[target_implementation]
 
     regex_generator = DatabaseRegexGenerator()
+    regexes = regex_generator.generate_many(regex_num)
+    logger.info(f"Generated {len(regexes)} regexes.")
+
+    fuzz_with_regexes(regexes, inputs_num, target_runner, oracle_params, kwargs)
+
+
+def fuzz_with_dfa(
+    target_implementation: str,
+    oracle_params: tuple[bool, str],
+    regex_num: int,
+    inputs_num: int,
+    kwargs: dict,
+):
+    """
+    Fuzz test with DFA.
+    """
+    target_runner = TARGETS[target_implementation]
+
+    regex_generator = DFARegexGenerator()
     regexes = regex_generator.generate_many(regex_num)
     logger.info(f"Generated {len(regexes)} regexes.")
 

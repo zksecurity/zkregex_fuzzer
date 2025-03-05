@@ -22,6 +22,10 @@ from typing import List
 
 from fuzzingbook.Grammars import Grammar
 
+from zkregex_fuzzer.dfa import (
+    generate_random_dfa,
+    transform_dfa_to_regex,
+)
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.utils import (
     check_zkregex_rules_basic,
@@ -144,3 +148,33 @@ class DatabaseRegexGenerator(RegexGenerator):
                         break
 
             return result
+
+
+class DFARegexGenerator(RegexGenerator):
+    """
+    Generate regexes using a DFA.
+    """
+
+    def __init__(
+        self,
+        max_depth: int = 5,
+        use_unicode: bool = False,
+        single_final_state: bool = True,
+    ):
+        self.max_depth = max_depth
+        self.use_unicode = use_unicode
+        self.single_final_state = single_final_state
+
+    def generate_unsafe(self) -> str:
+        """
+        Generate a regex using a DFA.
+        """
+        while True:
+            try:
+                dfa = generate_random_dfa(
+                    self.max_depth, self.use_unicode, self.single_final_state
+                )
+                return transform_dfa_to_regex(dfa)
+            except Exception as e:
+                logger.debug(f"Error generating DFA: {e}")
+                continue

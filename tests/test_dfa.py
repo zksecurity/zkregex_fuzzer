@@ -1,5 +1,6 @@
 from automata.regex.regex import isequal
 from zkregex_fuzzer.dfa import (
+    generate_random_dfa,
     has_multiple_accepting_states_regex,
     regex_to_dfa,
     transform_dfa_to_regex,
@@ -69,3 +70,31 @@ def test_transform_dfa_to_regex_with_multiple_accepting_states():
             transformed_regex = transform_dfa_to_regex(transformed_dfa)
             new_dfa = regex_to_dfa(transformed_regex)
             assert len(new_dfa.final_states) == 1
+
+
+def test_generate_dfa():
+    while True:
+        try:
+            dfa_with_final = generate_random_dfa(
+                max_depth=10, use_unicode=False, single_final_state=True
+            )
+            regex_with_final = transform_dfa_to_regex(dfa_with_final)
+            break
+        except Exception:
+            continue
+    dfa_from_regex_with_final = regex_to_dfa(regex_with_final)
+    assert len(dfa_with_final.final_states) == 1
+    assert len(dfa_from_regex_with_final.final_states) == 1
+
+    while True:
+        try:
+            dfa_without_final = generate_random_dfa(
+                max_depth=10, use_unicode=False, single_final_state=False
+            )
+            regex_without_final = transform_dfa_to_regex(dfa_without_final)
+            break
+        except Exception:
+            continue
+    dfa_from_regex_without_final = regex_to_dfa(regex_without_final)
+    assert len(dfa_without_final.final_states) >= 1
+    assert len(dfa_from_regex_without_final.final_states) >= 1

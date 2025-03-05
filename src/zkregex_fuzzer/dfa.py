@@ -5,6 +5,8 @@ A number of functions for working with DFAs.
 """
 
 import random
+import string
+from typing import Dict, Optional, Set
 
 from automata.fa.dfa import DFA
 from automata.fa.gnfa import GNFA
@@ -226,3 +228,160 @@ def transform_dfa_to_single_accepting_state(dfa: DFA, strategy: str = "random") 
         )
     else:
         return _merge_strategy(states, alphabet, transitions, initial, original_finals)
+
+
+def _get_alphabet(
+    use_unicode: bool, num_states: int, min_size: int = 2, max_size: int = 10
+) -> Set[str]:
+    """
+    Generate a random alphabet for a DFA.
+    """
+    alphabet_size = random.randint(min_size, max_size)
+    if use_unicode:
+        alphabet = set()
+        while len(alphabet) < alphabet_size:
+            codepoint = random.randint(0, 0x10FFFF)
+            try:
+                char = chr(codepoint)
+            except ValueError:
+                continue  # skip invalid code points (if any)
+            alphabet.add(char)
+    else:
+        # Restricted character set: letters, digits, punctuation, whitespace
+        allowed_pool = (
+            string.ascii_letters
+            + string.digits
+            + string.punctuation
+            + string.whitespace
+        )
+        alphabet = set(random.sample(allowed_pool, alphabet_size))
+    return alphabet
+
+
+def generate_random_dfa(
+    max_depth: int = 5,
+    use_unicode: bool = False,
+    single_final_state: bool = False,
+    seed: Optional[int] = None,
+) -> DFA:
+    """
+    Generate a random DFA with a given seed for reproducibility.
+    """
+    # Seed the random number generator for reproducibility (if seed is given)
+    if seed is not None:
+        random.seed(seed)
+    else:
+        seed = random.randrange(0, 2**32)
+        random.seed(seed)
+
+    num_states = random.randint(1, max_depth)
+
+    # Define state names (q0, q1, ..., qN) and the initial state
+    states = {f"q{i}" for i in range(num_states)}
+    initial_state = "q0"
+
+    # Determine final state(s)
+    if single_final_state:
+        final_state = random.choice(list(states))
+        final_states = {final_state}
+    else:
+        # One or more final states (randomly chosen subset of states)
+        num_finals = random.randint(1, num_states)  # at least one final
+        final_states = set(random.sample(list(states), num_finals))
+
+    alphabet = _get_alphabet(use_unicode, num_states)
+
+    # Construct transitions: for each state and each symbol, choose a random next state
+    transitions: Dict[str, Dict[str, str]] = {}
+    for state in states:
+        transitions[state] = {}
+        for sym in alphabet:
+            transitions[state][sym] = random.choice(list(states))
+
+    # Ensure at least one self-loop (cycle)
+    loop_exists = any(
+        state == dest for state in states for dest in transitions[state].values()
+    )
+    if not loop_exists:
+        # Add a self-loop on a random state with a random symbol
+        some_state = random.choice(list(states))
+        some_symbol = random.choice(list(alphabet))
+        transitions[some_state][some_symbol] = some_state
+
+    # Ensure at least one branching point (one state with two different outgoing targets)
+    if len(alphabet) >= 2:
+        branching_exists = any(len(set(transitions[s].values())) >= 2 for s in states)
+        if not branching_exists:
+            # Force branching on the initial state (as an example)
+            sym_list = list(alphabet)
+            # Make sure we have at least two symbols to create a branch
+            if len(sym_list) >= 2:
+                sym1, sym2 = sym_list[0], sym_list[1]
+                # Assign different targets for sym1 and sym2 from the initial state
+                if transitions[initial_state][sym1] == transitions[initial_state][sym2]:
+                    # Pick a different state for sym2 if both symbols currently go to the same target
+                    possible_targets = list(states - {transitions[initial_state][sym1]})
+                    if possible_targets:
+                        transitions[initial_state][sym2] = random.choice(
+                            possible_targets
+                        )
+                    # (If no possible_targets, it means only one state exists, handled by loop above)
+
+    # Introduce an "optional" path (allow skipping or taking a symbol):
+    # We do this by creating an alternate route to a final state.
+    if single_final_state and len(states) > 1:
+        # For a single final state, ensure multiple paths (direct & indirect) to it
+        final_state = next(iter(final_states))  # the only final state
+        # If initial state doesn't already have a direct transition to final, add one
+        if final_state not in transitions[initial_state].values():
+            sym = random.choice(list(alphabet))
+            transitions[initial_state][sym] = final_state
+        # Also ensure an indirect path: find a symbol from initial that goes to an intermediate state
+        intermediate_symbols = [
+            sym
+            for sym, dest in transitions[initial_state].items()
+            if dest != final_state
+        ]
+        if intermediate_symbols:
+            sym = intermediate_symbols[0]
+            intermediate_state = transitions[initial_state][sym]
+            # Link the intermediate state to the final state on some symbol (if not already final)
+            if intermediate_state != final_state:
+                sym2 = random.choice(list(alphabet))
+                transitions[intermediate_state][sym2] = final_state
+    elif not single_final_state:
+        # If multiple finals are allowed, we can treat the start state as an optional accepting state
+        # (Accept empty string or early termination)
+        if initial_state not in final_states:
+            final_states.add(initial_state)
+
+    # Construct the DFA with the generated components
+    dfa = DFA(
+        states=states,
+        input_symbols=alphabet,
+        transitions=transitions,
+        initial_state=initial_state,
+        final_states=final_states,
+    )
+
+    # Minimize the DFA for a simpler equivalent automaton
+    try:
+        # If automata-lib provides a direct minification method
+        dfa = dfa.minify()
+    except AttributeError:
+        # Fallback: convert to NFA and use DFA.from_nfa for minimization
+        nfa_transitions: Dict[str, Dict[str, Set[str]]] = {}
+        for state, trans in transitions.items():
+            # Each DFA transition becomes a singleton set in the NFA transition
+            nfa_transitions[state] = {sym: {dest} for sym, dest in trans.items()}
+        nfa = NFA(
+            states=states,
+            input_symbols=alphabet,
+            transitions=nfa_transitions,
+            initial_state=initial_state,
+            final_states=final_states,
+        )
+        # Convert NFA to DFA with minimization
+        dfa = DFA.from_nfa(nfa, minify=True)
+
+    return dfa
