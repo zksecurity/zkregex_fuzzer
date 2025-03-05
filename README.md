@@ -113,3 +113,13 @@ python src/zkregex_fuzzer/cli.py fuzz \
     --fuzzer grammar \
     --circom-library ../zk-regex/node_modules/circomlib ../zk-regex/node_modules/
 ```
+
+or for noir with the database fuzzer
+
+```
+python src/zkregex_fuzzer/cli.py fuzz \
+    --oracle valid \
+    --target noir \
+    --valid-input-generator exrex \
+    --fuzzer database
+```
