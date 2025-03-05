@@ -22,6 +22,7 @@ dependencies = [
   "fuzzingbook",
   "rstr",
   "exrex",
+  "joblib",
 ]
 
 [project.optional-dependencies]
