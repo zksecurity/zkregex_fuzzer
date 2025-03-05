@@ -58,6 +58,13 @@ npm install -g snarkjs@latest
 In order to target Noir implementation, you need to install Noir as follows:
 
 ```
+curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash
+noirup
+```
+
+Also, you need to custom installation of zk-regex as follows:
+
+```
 git clone git@github.com:Mach-34/noir-zk-regex.git
 cd noir-zk-regex
 git checkout fix/efficient-substrings
