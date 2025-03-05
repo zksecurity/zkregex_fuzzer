@@ -3,6 +3,7 @@ Implements the logic for generating regexes using The Fuzzing Book's GrammarFuzz
 """
 
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
+from joblib import Parallel, delayed
 
 from zkregex_fuzzer.configs import GRAMMARS, TARGETS, VALID_INPUT_GENERATORS
 from zkregex_fuzzer.harness import HarnessStatus, harness
@@ -83,18 +84,29 @@ def fuzz_with_regexes(
     else:
         raise NotImplementedError("Oracle not implemented")
 
+    n_threads = kwargs.get("threads", 1)
+    Parallel(n_jobs=n_threads)(
+        delayed(harness_runtime)(regex, regex_inputs, target_runner, oracle, kwargs)
+        for regex, regex_inputs in zip(regexes, regexes_inputs)
+    )
+
+
+def harness_runtime(regex, inputs, target_runner, oracle, kwargs):
+    """
+    Harness for running regexes.
+    """
+
     # We should use the PythonReRunner to check the validity of the regexes and the inputs.
     # If there is a bug in the PythonReRunner, we might not find it as we will think that
     # either the regex or the input is invalid.
     primary_runner = PythonReRunner
-    for regex, inputs in zip(regexes, regexes_inputs):
-        print(f"Testing regex: {pretty_regex(regex)} -------- ({len(inputs)} inputs)")
-        result = harness(regex, primary_runner, target_runner, inputs, oracle, kwargs)
-        if result.status != HarnessStatus.SUCCESS:
-            print("-" * 80)
-            print(f"Found a bug with regex: {regex}")
-            print(f"Inputs: {inputs}")
-            print(f"Result: {result.status}")
-            print(f"Failed inputs: {result.failed_inputs}")
-            print(f"Error message: {result.error_message}")
-            print("-" * 80)
+    print(f"Testing regex: {pretty_regex(regex)} -------- ({len(inputs)} inputs)")
+    result = harness(regex, primary_runner, target_runner, inputs, oracle, kwargs)
+    if result.status != HarnessStatus.SUCCESS:
+        print("-" * 80)
+        print(f"Found a bug with regex: {pretty_regex(regex)}")
+        print(f"Inputs: {inputs}")
+        print(f"Result: {result.status}")
+        print(f"Failed inputs: {result.failed_inputs}")
+        print(f"Error message: {result.error_message}")
+        print("-" * 80)
