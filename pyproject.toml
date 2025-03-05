@@ -34,7 +34,7 @@ dev = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py312"
 lint.select = ["E", "F", "W", "I"]
 lint.ignore = ["F401", "E501"]
 

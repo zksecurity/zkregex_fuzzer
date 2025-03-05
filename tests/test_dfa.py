@@ -1,5 +1,6 @@
 from automata.regex.regex import isequal
 from zkregex_fuzzer.dfa import (
+    dfa_string_matching,
     generate_random_dfa,
     has_multiple_accepting_states_regex,
     regex_to_dfa,
@@ -17,26 +18,29 @@ regex_with_multiple_accepting_states = [
     r"(a|ab|abc)",
     r"(1|12)",
 ]
+regex_without_multiple_accepting_states = [
+    r"(a|b)*",
+    r"abc",
+    r"(abc|def|ghi)",
+    r"(abc)*",
+    r"(hello)",
+    r"(ab)*",
+    r"(a|b|c)*",
+    r"((a|b|c)*abc)",  # This is somewhat comples, do we want to support this?
+    r"[a-zA-Z]+",
+    r"[0-9]+",
+    r"(abc|abcd|abcde)f",
+    r"(hello|helloo|hellooo)(foo|foob|fooba)?bar",
+    r"(foo|foob|fooba)?bar",
+    r"(abc|def)(gh|jk)(lm|nop)",
+]
+single_solution_regexes = [
+    r"abc",
+    r"(hello)",
+]
 
 
 def test_has_multiple_accepting_states_regex_without_multiple():
-    regex_without_multiple_accepting_states = [
-        r"(a|b)*",
-        r"abc",
-        r"(abc|def|ghi)",
-        r"(abc)*",
-        r"(hello)",
-        r"(ab)*",
-        r"(a|b|c)*",
-        r"((a|b|c)*abc)",
-        r"[a-zA-Z]+",
-        r"[0-9]+",
-        r"(abc|abcd|abcde)f",
-        r"(hello|helloo|hellooo)(foo|foob|fooba)?bar",
-        r"(foo|foob|fooba)?bar",
-        r"(abc|def)(gh|jk)(lm|nop)",
-    ]
-
     for regex in regex_without_multiple_accepting_states:
         assert not has_multiple_accepting_states_regex(regex)
 
@@ -79,10 +83,10 @@ def test_generate_dfa():
                 max_depth=10, use_unicode=False, single_final_state=True
             )
             regex_with_final = transform_dfa_to_regex(dfa_with_final)
+            dfa_from_regex_with_final = regex_to_dfa(regex_with_final)
             break
         except Exception:
             continue
-    dfa_from_regex_with_final = regex_to_dfa(regex_with_final)
     assert len(dfa_with_final.final_states) == 1
     assert len(dfa_from_regex_with_final.final_states) == 1
 
@@ -92,9 +96,21 @@ def test_generate_dfa():
                 max_depth=10, use_unicode=False, single_final_state=False
             )
             regex_without_final = transform_dfa_to_regex(dfa_without_final)
+            dfa_from_regex_without_final = regex_to_dfa(regex_without_final)
             break
         except Exception:
             continue
-    dfa_from_regex_without_final = regex_to_dfa(regex_without_final)
     assert len(dfa_without_final.final_states) >= 1
     assert len(dfa_from_regex_without_final.final_states) >= 1
+
+
+def test_dfa_string_matching():
+    for regex in regex_without_multiple_accepting_states:
+        string = dfa_string_matching(regex)
+        assert string is not None
+        for _ in range(5):
+            string2 = dfa_string_matching(regex)
+            if string != string2:
+                break
+        if regex not in single_solution_regexes:
+            assert string != string2
