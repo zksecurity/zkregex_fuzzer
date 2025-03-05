@@ -19,6 +19,7 @@ from zkregex_fuzzer.runner.circom import (
     SnarkjsSubprocess,
     ZkRegexSubprocess,
 )
+from zkregex_fuzzer.runner.subprocess import BarretenbergSubprocess, NoirSubprocess
 
 
 def fuzz_parser():
@@ -51,6 +52,11 @@ def fuzz_parser():
         help=f"The valid input generator to use for the fuzzer (options: {list(VALID_INPUT_GENERATORS.keys())}).",
     )
     parser.add_argument(
+        "--seed",
+        default=str(uuid.uuid4()),
+        help="Seed for random generator (default: UUIDv4)",
+    )
+    parser.add_argument(
         "--save",
         choices=[status.name for status in HarnessStatus],
         nargs="+",
@@ -75,7 +81,7 @@ def fuzz_parser():
         help="Maximum depth of recursion in the grammar (default: 5).",
     )
     parser.add_argument(
-        "--circom-max-input-size",
+        "--max-input-size",
         type=int,
         default=600,
         help="Maximum size of the circuit input (default: 600).",
@@ -99,6 +105,19 @@ def fuzz_parser():
         help="Path to the ptau (powers-of-tau) file for the proving step",
     )
 
+    parser.add_argument(
+        "--noir-prove",
+        action="store_true",
+        help="Run the proving and verification step with Barretenberg.",
+    )
+
+    parser.add_argument(
+        "--logger-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logger level (default: INFO).",
+    )
+
     return parser
 
 
@@ -112,6 +131,12 @@ def reproduce_parser():
         help="Path to the target directory output that want to be reproduced (support wildcard pattern).",
         required=True,
     )
+    parser.add_argument(
+        "--logger-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logger level (default: INFO).",
+    )
 
     return parser
 
@@ -123,13 +148,15 @@ def do_fuzz(args):
 
     if args.target == "circom":
         try:
-            circom_version = CircomSubprocess.get_installed_version()
-            snarkjs_version = SnarkjsSubprocess.get_installed_version()
             zk_regex_version = ZkRegexSubprocess.get_installed_version()
+            circom_version = CircomSubprocess.get_installed_version()
             print("-" * 80)
-            print(f"Circom: {circom_version}")
-            print(f"SnarkJS: {snarkjs_version}")
             print(f"zk-regex: {zk_regex_version}")
+            print(f"Circom: {circom_version}")
+            if args.circom_prove:
+                snarkjs_version = SnarkjsSubprocess.get_installed_version()
+                print(f"SnarkJS: {snarkjs_version}")
+
         except ValueError as e:
             print(e)
             exit(1)
@@ -159,6 +186,20 @@ def do_fuzz(args):
                 print(f"Path to ptau file {ptau_path} does not exist.")
                 exit(1)
 
+    elif args.target == "noir":
+        try:
+            zk_regex_version = ZkRegexSubprocess.get_installed_version()
+            noir_version = NoirSubprocess.get_installed_version()
+            print("-" * 80)
+            print(f"zk-regex: {zk_regex_version}")
+            print(f"Noir: {noir_version}")
+            if args.noir_prove:
+                bb_version = BarretenbergSubprocess.get_installed_version()
+                print(f"Barretenberg: {bb_version}")
+        except ValueError as e:
+            print(e)
+            exit(1)
+
     print("-" * 80)
     print(f"Fuzzing with {args.fuzzer} fuzzer.")
     print("=" * 80)
@@ -173,9 +214,7 @@ def do_fuzz(args):
     kwargs = vars(args)
 
     # set global seed
-    seed = str(uuid.uuid4())
-    kwargs["seed"] = seed
-    random.seed(seed)
+    random.seed(args.seed)
 
     if args.fuzzer == "grammar":
         fuzz_with_grammar(
@@ -203,12 +242,6 @@ def do_reproduce(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--logger-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="INFO",
-        help="Set the logger level (default: INFO).",
-    )
 
     subparser = parser.add_subparsers(dest="subcommand")
     subparser.add_parser(

@@ -7,6 +7,7 @@ TODO:
     - Add more tests
     - Fix linting errors
 """
+
 import sre_parse
 import string
 from typing import Any, Dict, List, Tuple
