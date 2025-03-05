@@ -5,8 +5,8 @@ A number of functions for working with DFAs.
 """
 
 import random
-import string
 import re
+import string
 from typing import Dict, Optional, Set
 
 from automata.fa.dfa import DFA
@@ -64,11 +64,11 @@ def wrapped_has_one_accepting_state_regex(regex: str) -> bool:
     if regex.startswith("^"):
         regex = regex[1:]
     # There are also some more cases with "starting" "^"
-    if regex.startswith("(|^)"):
+    elif regex.startswith("(|^)"):
         regex = regex[4:]
     # Cases like '(\r\n|^)...', '(\r|^)...', '(\n|^)...'
-    if bool(re.match(r'^\([\\r\\n]*|\s*\|\^\).*', regex)):
-        regex = regex[regex.find("^")+2:]
+    elif bool(re.match(r"^\([\\r\\n]*\|\^\).*", regex)):
+        regex = regex[regex.find("^") + 2 :]
     if regex.endswith("$"):
         regex = regex[:-1]
     return has_one_accepting_state_regex(regex)
