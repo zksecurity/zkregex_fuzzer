@@ -7,7 +7,7 @@ import re
 import string
 
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
-
+from zkregex_fuzzer.dfa import wrapped_has_one_accepting_state_regex
 
 def is_valid_regex(regex: str) -> bool:
     """
@@ -20,65 +20,85 @@ def is_valid_regex(regex: str) -> bool:
         return False
 
 
-def check_zkregex_rules_basic(regex: str) -> bool:
+def has_lazy_quantifier(pattern: str) -> bool:
+    """
+    Returns True if `pattern` contains any lazy quantifiers (i.e., *?, +?, ??, or {m,n}?),
+    False otherwise.
+
+    This is a naive textual check and doesn't handle escaping inside character classes or
+    more advanced regex syntax. For most simple usage, however, it suffices.
+    """
+    # Regex to search for the typical lazy quantifier patterns:
+    #   *?   +?   ??   {m,n}?
+    # We'll assume m,n are simple digit sets, e.g. {2,5}
+    lazy_check = re.compile(r'(\*\?)|(\+\?)|(\?\?)|\{\d+(,\d+)?\}\?')
+    
+    match = lazy_check.search(pattern)
+    return bool(match)
+
+
+def correct_carret_position(regex: str) -> bool:
+    """
+    Correct positions are:
+        - At the start of the regex
+        - In a capturing group that is at the start of the regex
+        - In a negated character class
+    Returns True if the '^' is in the correct position, False otherwise.
+
+    This is a naive textual check and doesn't handle escaping inside character classes or
+    more advanced regex syntax. For most simple usage, however, it suffices.
+    """
+    # Find all occurrences of '^' that are not escaped
+    caret_positions = [match.start() for match in re.finditer(r'(?<!\\)\^', regex)]
+    if len(caret_positions) == 0:
+        return True
+    # Check each position
+    status = False
+    for pos in caret_positions:
+        status = False
+        if pos == 0:
+            status = True
+            continue
+        # We have '^' at the end of the regex
+        if pos+1 == len(regex) and len(regex) > 1:
+            continue
+        # Let's check if the '^' is in a group that is at the start of the regex
+        # and before '^' there is a '|' and before '|' there is either nothing or \r or \n until
+        # the beginning of the group
+        if regex[pos-1] == '|' and regex[pos+1] == ')' and regex[0] == '(' and bool(re.match(r'^\s*', regex[1:pos-1])):
+            status = True
+            continue
+        # Let's check if the '^' is in a negated character class
+        if regex[pos-1] == '[':
+            status = True
+            continue
+        if status is False:
+            return False
+    return status
+    
+
+def check_zkregex_rules_basic(regex: str) -> tuple[bool, bool]:
     """
     Check partial zk-regex constraints with a text-based approach:
-      1) Must end with '$'
-      2) If '^' is present, it is either at index 0 or in substring '(|^)'
-      3) No lazy quantifiers like '*?' or '+?' or '??' or '{m,n}?'
-    Returns True if all checks pass, False otherwise.
-
-    TODO: DFA Checks -- code that actually compiles the regex to an automaton and verifies:
-        - No loop from initial state back to itself (i.e. no .*-like or equivalent)
-        - Only one accepting state
+      1) If '^' is present, it is either at index 0 or in substring '(|^)' or in (\r\n|^) or in substring '[^...]'
+      2) No lazy quantifiers like '*?' or '+?' or '??' or '{m,n}?'
+      3) Check that the regex has exactly one accepting state
+    Returns True if all checks pass, False otherwise. Also return the status of the accepting state check.
+    Returns (True, True) if all checks pass, (False, True) if the regex is invalid, (False, False) if the regex has multiple accepting states.
     """
+    # 1) If '^' is present, it is either at index 0 or in substring '(|^)' or in (\r\n|^) or in substring '[^...]'
+    if not correct_carret_position(regex):
+        return False, True  # we return True as we haven't performed the DFA check
 
-    # 1) Must end with '$' (if it present)
-    if "$" in regex and not regex.endswith("$"):
-        return False
+    # 2) Check no lazy quantifiers like *?, +?, ??, or {m,n}?
+    if has_lazy_quantifier(regex):
+        return False, True  # we return True as we haven't performed the DFA check
 
-    # 2) '^' must be at start or in '(|^)'
-    # We'll allow no '^' at all. If it appears, check positions.
-    # We'll define a function to find all occurrences of '^'.
-    allowed_positions = set()
-    # If the string starts with '^', that’s allowed
-    if len(regex) > 0 and regex[0] == "^":
-        allowed_positions.add(0)
+    # 3) Check that the regex has exactly one accepting state
+    if not wrapped_has_one_accepting_state_regex(regex):
+        return False, False  
 
-    # If the string contains '|^', that means '^' is at position (idx+1)
-    idx = 0
-    while True:
-        idx = regex.find("|^", idx)
-        if idx == -1:
-            break
-        # '^' occurs at (idx + 1)
-        allowed_positions.add(idx + 1)
-        idx += 2  # skip past
-
-    # If the string contains '[^]', that means '^' is at position (idx+1)
-    idx = 0
-    while True:
-        idx = regex.find("[^", idx)
-        if idx == -1:
-            break
-        # '^' occurs at (idx + 1)
-        allowed_positions.add(idx + 1)
-        idx += 2  # skip past
-
-    # Now see if there's any '^' outside those allowed positions
-    for match in re.finditer(r"\^", regex):
-        pos = match.start()
-        if pos not in allowed_positions:
-            return False
-
-    # 3) Check no lazy quantifiers like *?, +?, ??, or {m,n}?
-    # We do a simple regex search for them:
-    # Patterns we search for: (*?), (+?), (??), ({\d+(,\d+)?}\?)
-    lazy_pattern = re.compile(r"(\*\?|\+\?|\?\?|\{\d+(,\d+)?\}\?)")
-    if lazy_pattern.search(regex):
-        return False
-
-    return True
+    return True, True
 
 
 def check_if_string_is_valid(regex: str, string: str) -> bool:

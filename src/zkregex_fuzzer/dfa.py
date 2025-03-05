@@ -6,6 +6,7 @@ A number of functions for working with DFAs.
 
 import random
 import string
+import re
 from typing import Dict, Optional, Set
 
 from automata.fa.dfa import DFA
@@ -40,6 +41,37 @@ def has_multiple_accepting_states_regex(regex: str) -> bool:
     num_final_states = len(dfa.final_states)
 
     return num_final_states > 1
+
+
+def has_one_accepting_state_regex(regex: str) -> bool:
+    """
+    Returns True if converting the given regex to a DFA yields
+    exactly one accepting (final) state. Returns False otherwise.
+    """
+    dfa = regex_to_dfa(regex)
+    return len(dfa.final_states) == 1
+
+
+def wrapped_has_one_accepting_state_regex(regex: str) -> bool:
+    """
+    Returns True if converting the given regex to a DFA yields
+    exactly one accepting (final) state. Returns False otherwise.
+
+    NOTE:
+      - As the automata-lib does not support starting with '^' and ending with '$',
+      we just remove them from the regex and check if the rest of the regex has one accepting state.
+    """
+    if regex.startswith("^"):
+        regex = regex[1:]
+    # There are also some more cases with "starting" "^"
+    if regex.startswith("(|^)"):
+        regex = regex[4:]
+    # Cases like '(\r\n|^)...', '(\r|^)...', '(\n|^)...'
+    if bool(re.match(r'^\([\\r\\n]*|\s*\|\^\).*', regex)):
+        regex = regex[regex.find("^")+2:]
+    if regex.endswith("$"):
+        regex = regex[:-1]
+    return has_one_accepting_state_regex(regex)
 
 
 def has_multiple_accepting_states_dfa(dfa: DFA) -> bool:

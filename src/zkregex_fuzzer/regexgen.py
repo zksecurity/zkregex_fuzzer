@@ -54,7 +54,9 @@ class RegexGenerator(ABC):
             regex = self.generate_unsafe()
             if not is_valid_regex(regex):
                 continue
-            if not check_zkregex_rules_basic(regex):
+            correct, accepting_state_check = check_zkregex_rules_basic(regex)
+            if not correct:
+                # TODO: We should try to fix the regex if it has multiple accepting states
                 continue
             logger.debug(f"Generated regex: {regex}")
             return regex
