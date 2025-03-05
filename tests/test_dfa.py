@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 from automata.regex.regex import isequal
 from zkregex_fuzzer.dfa import (
     dfa_string_matching,
