@@ -1,5 +1,15 @@
 # zkregex_fuzzer
 
+Tested and worked with:
+
+```
+Node            23.7.0
+Circom          2.2.1
+SnarkJS         0.7.5
+Noir            1.0.0-beta.2
+Barretenberg    0.72.1
+```
+
 ## Installation
 
 First, you need to generate a virtual env.
