@@ -6,7 +6,7 @@ from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 from joblib import Parallel, delayed
 
 from zkregex_fuzzer.configs import GRAMMARS, TARGETS, VALID_INPUT_GENERATORS
-from zkregex_fuzzer.harness import HarnessStatus, harness
+from zkregex_fuzzer.harness import HarnessResult, HarnessStatus, harness
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.regexgen import DatabaseRegexGenerator, GrammarRegexGenerator
 from zkregex_fuzzer.runner import PythonReRunner
@@ -84,14 +84,26 @@ def fuzz_with_regexes(
     else:
         raise NotImplementedError("Oracle not implemented")
 
-    n_threads = kwargs.get("threads", 1)
-    Parallel(n_jobs=n_threads)(
+    n_process = kwargs.get("process_num", 1)
+    results = Parallel(n_jobs=n_process)(
         delayed(harness_runtime)(regex, regex_inputs, target_runner, oracle, kwargs)
         for regex, regex_inputs in zip(regexes, regexes_inputs)
     )
 
+    for regex, inputs, result in results:  # type: ignore
+        if result.status != HarnessStatus.SUCCESS:
+            print("-" * 80)
+            print(f"Found a bug with regex: {pretty_regex(regex)}")
+            print(f"Inputs: {inputs}")
+            print(f"Result: {result.status}")
+            print(f"Failed inputs: {result.failed_inputs}")
+            print(f"Error message: {result.error_message}")
+            print("-" * 80)
 
-def harness_runtime(regex, inputs, target_runner, oracle, kwargs):
+
+def harness_runtime(
+    regex, inputs, target_runner, oracle, kwargs
+) -> tuple[str, list[str], HarnessResult]:
     """
     Harness for running regexes.
     """
@@ -102,11 +114,4 @@ def harness_runtime(regex, inputs, target_runner, oracle, kwargs):
     primary_runner = PythonReRunner
     print(f"Testing regex: {pretty_regex(regex)} -------- ({len(inputs)} inputs)")
     result = harness(regex, primary_runner, target_runner, inputs, oracle, kwargs)
-    if result.status != HarnessStatus.SUCCESS:
-        print("-" * 80)
-        print(f"Found a bug with regex: {pretty_regex(regex)}")
-        print(f"Inputs: {inputs}")
-        print(f"Result: {result.status}")
-        print(f"Failed inputs: {result.failed_inputs}")
-        print(f"Error message: {result.error_message}")
-        print("-" * 80)
+    return regex, inputs, result
