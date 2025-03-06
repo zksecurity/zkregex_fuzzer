@@ -85,9 +85,6 @@ def fuzz_with_regexes(
         raise NotImplementedError("Oracle not implemented")
 
     n_process = kwargs.get("process_num", 1)
-    if n_process > 1:
-        dynamic_filter.set_enabled(False)
-
     results = Parallel(n_jobs=n_process)(
         delayed(harness_runtime)(regex, regex_inputs, target_runner, oracle, kwargs)
         for regex, regex_inputs in zip(regexes, regexes_inputs)
@@ -116,5 +113,7 @@ def harness_runtime(
     # either the regex or the input is invalid.
     primary_runner = PythonReRunner
     logger.info(f"Testing regex: {pretty_regex(regex)} -------- ({len(inputs)} inputs)")
+    if kwargs.get("process_num", 1) > 1:
+        dynamic_filter.set_enabled(False)
     result = harness(regex, primary_runner, target_runner, inputs, oracle, kwargs)
     return regex, inputs, result
