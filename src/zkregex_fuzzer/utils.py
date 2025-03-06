@@ -45,15 +45,15 @@ def check_zkregex_rules_basic(regex: str) -> bool:
     if len(regex) > 0 and regex[0] == "^":
         allowed_positions.add(0)
 
-    # If the string contains '(|^)', that means '^' is at position (idx+2)
+    # If the string contains '|^', that means '^' is at position (idx+1)
     idx = 0
     while True:
-        idx = regex.find("(|^)", idx)
+        idx = regex.find("|^", idx)
         if idx == -1:
             break
-        # '^' occurs at (idx + 2)
-        allowed_positions.add(idx + 2)
-        idx += 4  # skip past
+        # '^' occurs at (idx + 1)
+        allowed_positions.add(idx + 1)
+        idx += 2  # skip past
 
     # If the string contains '[^]', that means '^' is at position (idx+1)
     idx = 0
