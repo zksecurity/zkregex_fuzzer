@@ -35,6 +35,10 @@ VALID_INPUT_GENERATORS = {
     "predefined": PredefinedGenerator,
 }
 
+INVALID_INPUT_GENERATORS = {
+    "mutation": MutationBasedGenerator,
+}
+
 GENERATORS = {
     "grammar": GrammarRegexGenerator,
     "database": DatabaseRegexGenerator,

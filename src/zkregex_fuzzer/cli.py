@@ -63,6 +63,11 @@ def fuzz_parser():
         help=f"The valid input generator to use for the fuzzer (options: {list(VALID_INPUT_GENERATORS.keys())}).",
     )
     parser.add_argument(
+        "--invalid-input-generator",
+        choices=list(INVALID_INPUT_GENERATORS.keys()),
+        help=f"The invalid input generator to use for the fuzzer (options: {list(INVALID_INPUT_GENERATORS.keys())}).",
+    )
+    parser.add_argument(
         "--seed",
         default=str(uuid.uuid4()),
         help="Seed for random generator (default: UUIDv4)",
@@ -265,12 +270,25 @@ def do_fuzz(args):
 
     dir_path = Path(args.save_output)
     dir_path.mkdir(parents=True, exist_ok=True)
+    if args.oracle == "valid":
+        if not args.valid_input_generator:
+            print("Valid input generator is required for valid oracle.")
+            exit(1)
+        oracle_params = (True, args.valid_input_generator)
+    elif args.oracle == "invalid":
+        if not args.invalid_input_generator:
+            print("Invalid input generator is required for invalid oracle.")
+            exit(1)
+        oracle_params = (False, args.invalid_input_generator)
+    else:
+        print("Oracle is required.")
+        exit(1)
 
     if args.fuzzer == "grammar":
         fuzz_with_grammar(
             target_grammar="basic",
             target_implementation=args.target,
-            oracle_params=(args.oracle == "valid", args.valid_input_generator),
+            oracle_params=oracle_params,
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
             max_depth=args.grammar_max_depth,
@@ -279,7 +297,7 @@ def do_fuzz(args):
     elif args.fuzzer == "database":
         fuzz_with_database(
             target_implementation=args.target,
-            oracle_params=(args.oracle == "valid", args.valid_input_generator),
+            oracle_params=oracle_params,
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
             kwargs=kwargs,

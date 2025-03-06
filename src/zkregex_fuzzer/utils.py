@@ -113,7 +113,7 @@ def check_if_string_is_valid(regex: str, string: str) -> bool:
     Check if a string is valid for a regex.
     """
     try:
-        return re.match(regex, string) is not None
+        return re.findall(regex, string) != []
     except re.error:
         return False
 

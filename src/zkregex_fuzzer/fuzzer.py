@@ -8,7 +8,12 @@ from concurrent.futures import ProcessPoolExecutor
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 from tqdm.auto import tqdm
 
-from zkregex_fuzzer.configs import GRAMMARS, TARGETS, VALID_INPUT_GENERATORS
+from zkregex_fuzzer.configs import (
+    GRAMMARS,
+    INVALID_INPUT_GENERATORS,
+    TARGETS,
+    VALID_INPUT_GENERATORS,
+)
 from zkregex_fuzzer.harness import HarnessResult, HarnessStatus, harness
 from zkregex_fuzzer.logger import logger, set_logging_enabled
 from zkregex_fuzzer.regexgen import (
@@ -140,8 +145,31 @@ def fuzz_with_regexes(
     """
     max_input_size = kwargs.get("max_input_size", None)
     oracle, oracle_generator = oracle_params
-    if not oracle:
-        raise NotImplementedError("Oracle not implemented")
+    if oracle:
+        generator = VALID_INPUT_GENERATORS[oracle_generator]
+        logger.info(f"Generating {inputs_num} inputs for each regex.")
+        regexes_inputs = []
+        for regex in regexes:
+            try:
+                regex_inputs = generator(regex, kwargs).generate_many(
+                    inputs_num, max_input_size
+                )
+            except ValueError as e:
+                logger.warning(e)
+                regex_inputs = []
+            regexes_inputs.append(regex_inputs)
+    else:
+        generator = INVALID_INPUT_GENERATORS[oracle_generator]
+        regexes_inputs = []
+        for regex in regexes:
+            try:
+                regex_inputs = generator(regex).generate_many(
+                    inputs_num, max_input_size
+                )
+            except ValueError as e:
+                logger.warning(e)
+                regex_inputs = []
+            regexes_inputs.append(regex_inputs)
 
     n_process = kwargs.get("process_num", 1)
 
