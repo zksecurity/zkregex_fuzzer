@@ -162,7 +162,6 @@ def harness(
             # elif secondary_runner_status == oracle and primary_runner_str != secondary_runner_str:
             # failed_inputs.append(input)
         except RegexRunError as e:
-            secondary_runner.save(output_path)
             return _return_harness_result(
                 HarnessResult(
                     regex, inp_num, oracle, [input], HarnessStatus.RUN_ERROR, str(e)
