@@ -8,7 +8,7 @@ from zkregex_fuzzer.dfa import (
     transform_dfa_to_regex,
     transform_dfa_to_single_accepting_state,
 )
-
+import re
 regex_with_multiple_accepting_states = [
     r"(ab|aba)",
     r"(ab|aba)*",
@@ -27,7 +27,7 @@ regex_without_multiple_accepting_states = [
     r"(hello)",
     r"(ab)*",
     r"(a|b|c)*",
-    r"((a|b|c)*abc)",  # This is somewhat comples, do we want to support this?
+    r"((a|b|c)*abc)",  # This is somewhat complex, do we want to support this?
     r"[a-zA-Z]+",
     r"[0-9]+",
     r"(abc|abcd|abcde)f",
@@ -38,6 +38,17 @@ regex_without_multiple_accepting_states = [
 single_solution_regexes = [
     r"abc",
     r"(hello)",
+]
+zkemail_regexes = [
+    ">[^<>]+<.*",
+    r"to:[^\r\n]+\r\n",
+    r")subject:[^\r\n]+\r\n",
+    r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~./]+@[A-Za-z0-9.\-@]+",
+    r"dkim-signature:([a-z]+=[^;]+; )+bh=[a-zA-Z0-9+/=]+;",
+    r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~./@]+@[A-Za-z0-9.\-]+",
+    r"from:[^\r\n]+\r\n",
+    r"dkim-signature:([a-z]+=[^;]+; )+t=[0-9]+;",
+    r"message-id:<[A-Za-z0-9=@\.\+_-]+>\r\n",
 ]
 
 
@@ -115,3 +126,17 @@ def test_dfa_string_matching():
                 break
         if regex not in single_solution_regexes:
             assert string != string2
+
+
+def test_dfa_string_matching_zkemail():
+    for regex in zkemail_regexes:
+        string = dfa_string_matching(regex)
+        print()
+        print("--------------------------------")
+        print(f"Testing regex: {regex}" )
+        print(f"String: {string}")
+        print("--------------------------------")
+        print()
+        assert string is not None
+        # we also need to check against re module
+        assert re.match(regex, string) is not None

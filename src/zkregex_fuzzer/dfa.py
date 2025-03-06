@@ -11,15 +11,22 @@ from typing import Dict, Optional, Set
 
 from automata.fa.dfa import DFA
 from automata.fa.gnfa import GNFA
-from automata.fa.nfa import NFA
+from automata.fa.nfa import NFA, RESERVED_CHARACTERS
+
+
+from zkregex_fuzzer.utils import ASCII_CHARS
 
 
 def regex_to_dfa(regex: str) -> DFA:
     """
     Convert a regex to a DFA.
     """
+    # Symbols should include at least all ASCII characters
+    symbols = ASCII_CHARS
+    symbols = symbols - RESERVED_CHARACTERS
+
     try:
-        nfa = NFA.from_regex(regex)
+        nfa = NFA.from_regex(regex, input_symbols=symbols)
     except Exception as e:
         raise ValueError(f"Failed to parse '{regex}' into an automaton: {e}")
     try:
