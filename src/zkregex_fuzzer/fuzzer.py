@@ -7,7 +7,7 @@ from joblib import Parallel, delayed
 
 from zkregex_fuzzer.configs import GRAMMARS, TARGETS, VALID_INPUT_GENERATORS
 from zkregex_fuzzer.harness import HarnessResult, HarnessStatus, harness
-from zkregex_fuzzer.logger import logger
+from zkregex_fuzzer.logger import dynamic_filter, logger
 from zkregex_fuzzer.regexgen import DatabaseRegexGenerator, GrammarRegexGenerator
 from zkregex_fuzzer.runner import PythonReRunner
 from zkregex_fuzzer.runner.base_runner import Runner
@@ -85,6 +85,9 @@ def fuzz_with_regexes(
         raise NotImplementedError("Oracle not implemented")
 
     n_process = kwargs.get("process_num", 1)
+    if n_process > 1:
+        dynamic_filter.set_enabled(False)
+
     results = Parallel(n_jobs=n_process)(
         delayed(harness_runtime)(regex, regex_inputs, target_runner, oracle, kwargs)
         for regex, regex_inputs in zip(regexes, regexes_inputs)
@@ -112,6 +115,6 @@ def harness_runtime(
     # If there is a bug in the PythonReRunner, we might not find it as we will think that
     # either the regex or the input is invalid.
     primary_runner = PythonReRunner
-    print(f"Testing regex: {pretty_regex(regex)} -------- ({len(inputs)} inputs)")
+    logger.info(f"Testing regex: {pretty_regex(regex)} -------- ({len(inputs)} inputs)")
     result = harness(regex, primary_runner, target_runner, inputs, oracle, kwargs)
     return regex, inputs, result
