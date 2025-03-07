@@ -5,7 +5,12 @@ from zkregex_fuzzer.regexgen import (
     GrammarRegexGenerator,
 )
 from zkregex_fuzzer.runner import CircomRunner, NoirRunner, PythonReRunner
-from zkregex_fuzzer.vinpgen import ExrexGenerator, GrammarBasedGenerator, RstrGenerator
+from zkregex_fuzzer.vinpgen import (
+    DFAWalkerGenerator,
+    ExrexGenerator,
+    GrammarBasedGenerator,
+    RstrGenerator,
+)
 
 TARGETS = {
     "circom": CircomRunner,
@@ -21,6 +26,7 @@ VALID_INPUT_GENERATORS = {
     "grammar": GrammarBasedGenerator,
     "rstr": RstrGenerator,
     "exrex": ExrexGenerator,
+    "dfa": DFAWalkerGenerator,
 }
 
 GENERATORS = {

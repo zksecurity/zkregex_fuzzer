@@ -11,19 +11,26 @@ from typing import Dict, Optional, Set
 
 from automata.fa.dfa import DFA
 from automata.fa.gnfa import GNFA
-from automata.fa.nfa import NFA, RESERVED_CHARACTERS
+from automata.fa.nfa import NFA
+
+from zkregex_fuzzer.chars import ASCII_CHARS
 
 
-from zkregex_fuzzer.utils import ASCII_CHARS
+def get_supported_symbols() -> set[str]:
+    """
+    Get the set of symbols that are supported by the regex engine.
+    """
+    # TODO make this configurable
+    # Symbols should include at least all ASCII characters
+    return ASCII_CHARS
 
 
 def regex_to_dfa(regex: str) -> DFA:
     """
     Convert a regex to a DFA.
     """
-    # Symbols should include at least all ASCII characters
-    symbols = ASCII_CHARS
-    symbols = symbols - RESERVED_CHARACTERS
+    symbols = get_supported_symbols()
+    regex = unwrap_regex(regex)
 
     try:
         nfa = NFA.from_regex(regex, input_symbols=symbols)
@@ -59,6 +66,25 @@ def has_one_accepting_state_regex(regex: str) -> bool:
     return len(dfa.final_states) == 1
 
 
+def unwrap_regex(regex: str) -> str:
+    """
+    Unwrap a regex by removing the start and end anchors.
+    """
+    if regex.startswith("^"):
+        regex = regex[1:]
+    # There are also some more cases with "starting" "^"
+    elif regex.startswith("(|^)"):
+        regex = regex[4:]
+    # Cases like '(\r\n|^)...', '(\r|^)...', '(\n|^)...'
+    elif bool(re.match(r"^\([\r\n]*\|\^\).*", regex)):
+        regex = regex[regex.find("^") + 2 :]
+    elif bool(re.match(r"^\([\\r\\n]*\|\^\).*", regex)):
+        regex = regex[regex.find("^") + 2 :]
+    if regex.endswith("$"):
+        regex = regex[:-1]
+    return regex.replace("\n", r"\n").replace("\r", r"\r")
+
+
 def wrapped_has_one_accepting_state_regex(regex: str) -> bool:
     """
     Returns True if converting the given regex to a DFA yields
@@ -68,17 +94,7 @@ def wrapped_has_one_accepting_state_regex(regex: str) -> bool:
       - As the automata-lib does not support starting with '^' and ending with '$',
       we just remove them from the regex and check if the rest of the regex has one accepting state.
     """
-    if regex.startswith("^"):
-        regex = regex[1:]
-    # There are also some more cases with "starting" "^"
-    elif regex.startswith("(|^)"):
-        regex = regex[4:]
-    # Cases like '(\r\n|^)...', '(\r|^)...', '(\n|^)...'
-    elif bool(re.match(r"^\([\\r\\n]*\|\^\).*", regex)):
-        regex = regex[regex.find("^") + 2 :]
-    if regex.endswith("$"):
-        regex = regex[:-1]
-    return has_one_accepting_state_regex(regex)
+    return has_one_accepting_state_regex(unwrap_regex(regex))
 
 
 def has_multiple_accepting_states_dfa(dfa: DFA) -> bool:
@@ -98,175 +114,6 @@ def transform_dfa_to_regex(dfa: DFA) -> str:
     # Use state elimination to get a regular expression
     regex = gnfa.to_regex()
     return regex
-
-
-def _pick_one_strategy(
-    states: set, alphabet: set, transitions: dict, initial: str, original_finals: set
-) -> DFA:
-    """
-    Choose one of the accepting states as the sole final state.
-    """
-    chosen_final = random.choice(list(original_finals))
-    new_final_states = {chosen_final}
-    # Redirect transitions that pointed to any other final state
-    for state in states:
-        for symbol in alphabet:
-            if (
-                transitions[state].get(symbol) in original_finals
-                and transitions[state][symbol] != chosen_final
-            ):
-                transitions[state][symbol] = chosen_final
-    # Remove other final states if they are no longer needed (unreachable and not initial)
-    for f in list(original_finals):
-        if f != chosen_final and f != initial:
-            states.discard(f)
-            transitions.pop(f, None)
-    # Construct the new DFA
-    return DFA(
-        states=states,
-        input_symbols=alphabet,
-        transitions=transitions,
-        initial_state=initial,
-        final_states=new_final_states,
-        allow_partial=True,
-    )
-
-
-def _new_dummy_strategy(
-    states: set, alphabet: set, transitions: dict, initial: str, original_finals: set
-) -> DFA:
-    """
-    Introduce a new dummy accepting state.
-    """
-    new_final_name = "DummyFinal"
-    # Ensure the new state name is unique
-    while new_final_name in states:
-        new_final_name += "_X"
-    # Add the new state
-    states.add(new_final_name)
-    # Redirect all transitions that lead into any original final state to the new dummy final
-    for state in states:
-        if state == new_final_name:
-            continue
-        for symbol in alphabet:
-            if transitions[state].get(symbol) in original_finals:
-                transitions[state][symbol] = new_final_name
-    # Define the new final state's transitions. We can leave it partial (no outgoing transitions)
-    # or make it a trap for completeness. Here we leave it with no outgoing transitions (partial DFA).
-    transitions[new_final_name] = {}
-    # Remove final status from original finals and drop those states if unreachable (except initial)
-    for f in original_finals:
-        if f != initial:
-            states.discard(f)
-            transitions.pop(f, None)
-    # New final state set contains only the dummy state
-    return DFA(
-        states=states,
-        input_symbols=alphabet,
-        transitions=transitions,
-        initial_state=initial,
-        final_states={new_final_name},
-        allow_partial=True,
-    )
-
-
-def _merge_strategy(
-    states: set, alphabet: set, transitions: dict, initial: str, original_finals: set
-) -> DFA:
-    """
-    Merge all accepting states into one unified state.
-    """
-    merged_name = "MergedFinal"
-    while merged_name in states:
-        merged_name += "_X"
-    # If the initial state is one of the finals, handle carefully by keeping it (to preserve empty-string acceptance)
-    if initial in original_finals:
-        merged_name = (
-            initial  # use initial as the merged final to preserve its identity
-        )
-    # Build the merged state's transition function by combining outgoing transitions of all original finals
-    merged_transitions = {}
-    for symbol in alphabet:
-        destinations = set()
-        for f in original_finals:
-            if f not in transitions:
-                continue
-            dest = transitions[f].get(symbol)
-            # If the destination is one of the original finals, treat it as a self-loop in the merged state
-            if dest in original_finals:
-                destinations.add(merged_name)
-            elif dest is not None:
-                destinations.add(dest)
-        if len(destinations) == 1:
-            # Exactly one possible destination for this symbol
-            merged_transitions[symbol] = destinations.pop()
-        elif len(destinations) > 1:
-            # Conflict: multiple different destinations for the same symbol.
-            # To keep the DFA deterministic, choose one arbitrarily (e.g., the first in the set).
-            merged_transitions[symbol] = next(iter(destinations))
-        # If destinations is empty, no transition defined (partial DFA for that symbol from merged state).
-    # Remove all old final states (except if one is initial, which we are reusing as merged_name)
-    for f in list(original_finals):
-        if f == initial:  # if initial is being used as merged_name, skip removal
-            continue
-        states.discard(f)
-        transitions.pop(f, None)
-    # Add the merged state to the state set
-    states.add(merged_name)
-    # Update transitions: redirect any transition pointing to an old final to point to the merged state
-    for state in list(states):
-        if state == merged_name:
-            continue
-        for symbol in alphabet:
-            if transitions[state].get(symbol) in original_finals:
-                transitions[state][symbol] = merged_name
-    # Set the merged state's transitions as computed
-    transitions[merged_name] = merged_transitions
-    # Define the single new final state
-    return DFA(
-        states=states,
-        input_symbols=alphabet,
-        transitions=transitions,
-        initial_state=initial,
-        final_states={merged_name},
-        allow_partial=True,
-    )
-
-
-def transform_dfa_to_single_accepting_state(dfa: DFA, strategy: str = "random") -> DFA:
-    """
-    Transform a DFA to a single accepting state.
-    """
-    # If there's already one or zero accepting states, no change needed
-    if len(dfa.final_states) <= 1:
-        return dfa
-
-    assert strategy in ["pick_one", "new_dummy", "merge", "random"]
-
-    # Copy components of the DFA for modification
-    states = set(dfa.states)
-    alphabet = set(dfa.input_symbols)
-    transitions = {
-        state: dict(dest_dict)  # copy of inner dict
-        for state, dest_dict in dfa.transitions.items()
-    }
-    initial = dfa.initial_state
-    original_finals = set(dfa.final_states)
-
-    # Randomly choose one of the transformation strategies
-    if strategy == "random":
-        strategy = random.choice(["pick_one", "new_dummy", "merge"])
-
-    if strategy == "pick_one":
-        return _pick_one_strategy(
-            states, alphabet, transitions, initial, original_finals
-        )
-    elif strategy == "new_dummy":
-        return _new_dummy_strategy(
-            states, alphabet, transitions, initial, original_finals
-        )
-    else:
-        return _merge_strategy(states, alphabet, transitions, initial, original_finals)
 
 
 def _get_alphabet(
@@ -301,18 +148,24 @@ def generate_random_dfa(
     max_depth: int = 5,
     use_unicode: bool = False,
     single_final_state: bool = False,
-    seed: Optional[int] = None,
 ) -> DFA:
     """
     Generate a random DFA with a given seed for reproducibility.
-    """
-    # Seed the random number generator for reproducibility (if seed is given)
-    if seed is not None:
-        random.seed(seed)
-    else:
-        seed = random.randrange(0, 2**32)
-        random.seed(seed)
 
+    Randomly incorporates regex features like character classes, repetition,
+    and fixed string prefixes/suffixes.
+
+    Parameters:
+        max_depth: Maximum number of states in the DFA
+        use_unicode: Whether to use Unicode characters in the alphabet
+        single_final_state: Whether to generate a DFA with exactly one final state
+
+    TODO:
+      - Add regex features
+      - Add support for more complex regex features
+      - Add support for more complex DFA structures
+    """
+    # Original implementation for generating a DFA directly
     num_states = random.randint(1, max_depth)
 
     # Define state names (q0, q1, ..., qN) and the initial state
@@ -426,100 +279,219 @@ def generate_random_dfa(
     return dfa
 
 
+def transform_dfa_to_single_final_state(dfa: DFA) -> DFA:
+    """
+    Convert a DFA with multiple final states to one with a single final state.
+
+    This implementation follows a principled automata theory approach:
+    1. Add a new final state
+    2. Redirect transitions from original final states to this new state
+    3. Make the new final state the only accepting state
+    4. Ensure the DFA is complete
+
+    Returns:
+        A new DFA with exactly one final state
+    """
+    # If the DFA already has a single final state, return it as-is
+    if len(dfa.final_states) == 1:
+        return dfa
+
+    # Create mutable copies of the DFA's components
+    states = set(dfa.states)
+    alphabet = set(dfa.input_symbols)
+    transitions = {}
+    for state in states:
+        transitions[state] = {}
+        for symbol in alphabet:
+            if state in dfa.transitions and symbol in dfa.transitions[state]:
+                transitions[state][symbol] = dfa.transitions[state][symbol]
+
+    initial_state = dfa.initial_state
+    original_finals = set(dfa.final_states)
+
+    # Step 1: Add a new single final state
+    new_final = max(states) + 1
+    states.add(new_final)
+    transitions[new_final] = {}
+
+    # Step 2: Redirect transitions from all existing final states to the new final state
+    for final_state in original_finals:
+        for symbol in alphabet:
+            if symbol in transitions[final_state]:
+                transitions[final_state][symbol] = new_final
+        if len(transitions[final_state]) == 0:
+            transitions[final_state][list(alphabet)[0]] = new_final
+
+    # Step 4: Create the transformed DFA with single final state
+    new_dfa = DFA(
+        states=states,
+        input_symbols=alphabet,
+        transitions=transitions,
+        initial_state=initial_state,
+        final_states={new_final},
+        allow_partial=True,
+    )
+    # Step 5: Minimize the DFA to merge equivalent states
+    # The automata-lib library has a built-in minify method
+    try:
+        minimized_dfa = new_dfa.minify()
+        # check if we can transform the minimized dfa to a regex
+        regex = transform_dfa_to_regex(minimized_dfa)
+        if not regex:
+            raise Exception("Failed to transform minimized DFA to regex")
+        return minimized_dfa
+    except Exception as e:
+        raise Exception(f"DFA minimization failed: {e}")
+
+
 def dfa_string_matching(
     regex: str,
-    max_length: int = 10,
+    wanted_length: int = 50,
+    direct_match: bool = True,
 ) -> str:
     """
     Convert `regex` to a DFA using automata-lib, then randomly generate a string
     that the DFA accepts. Returns a string that the DFA accepts.
+
+    Parameters:
+        regex: The regular expression to match
+        wanted_length: The desired length of the generated string
+        direct_match: If True, only follow paths that lead to accepting states
     """
+    regex = unwrap_regex(regex)
+    # Some hard limited length that we can't exceed
+    # TODO make this configurable
+    max_length = 500
+    # Convert regex to NFA
+    nfa = NFA.from_regex(regex, input_symbols=get_supported_symbols())
 
-    # Step 1: Convert to NFA or directly to DFA
-    dfa = regex_to_dfa(regex)
+    # Start with the initial state and an empty string
+    current_states = nfa._get_lambda_closures()[nfa.initial_state]
+    result = ""
 
-    # Step 2: Determine for each state if acceptance is possible from that state
-    # We'll do a BFS backward from each final state to mark reachable states.
-    can_reach_accept = _compute_accept_reachability(dfa)
+    # If we start in a final state and regex allows empty string, we might return empty
+    if not current_states.isdisjoint(nfa.final_states) and random.random() < 0.2:
+        return ""
 
-    # Step 3: Do a random walk
-    s = _random_walk_dfa(dfa, can_reach_accept, max_length)
-    if s is None:
-        raise ValueError("Failed to generate a string that the DFA accepts.")
-    return s
+    # If direct_match is True, precompute which states can reach a final state
+    reachable_to_final = None
+    if direct_match:
+        # Compute states that can reach a final state (reverse BFS)
+        reachable_to_final = set()
+        queue = list(nfa.final_states)
+        visited = set(queue)
 
+        # Build reverse transition graph
+        reverse_transitions = {}
+        for state in nfa.states:
+            reverse_transitions[state] = []
 
-def _compute_accept_reachability(dfa: DFA) -> dict:
-    """
-    For each state, store whether it's possible to reach a final state.
-    Returns a dict: state -> bool
-    """
-    # Start from final states and do BFS/DFS backwards:
-    # We'll create a graph reversed: from each state, we see where it can come from.
-    reverse_graph = {s: [] for s in dfa.states}
-    for s in dfa.states:
-        for sym, t in dfa.transitions[s].items():
-            reverse_graph[t].append((s, sym))
+        for state in nfa.states:
+            if state in nfa.transitions:
+                for symbol, next_states in nfa.transitions[state].items():
+                    for next_state in next_states:
+                        reverse_transitions[next_state].append((state, symbol))
 
-    can_reach = {s: False for s in dfa.states}
-    # Mark final states as can_reach = True
-    queue = list(dfa.final_states)
-    for f in queue:
-        can_reach[f] = True
+        # Do BFS from final states
+        while queue:
+            state = queue.pop(0)
+            reachable_to_final.add(state)
 
-    # BFS
-    idx = 0
-    while idx < len(queue):
-        current = queue[idx]
-        idx += 1
-        for prev_state, _symbol in reverse_graph[current]:
-            if not can_reach[prev_state]:
-                can_reach[prev_state] = True
-                queue.append(prev_state)
+            for prev_state, _ in reverse_transitions[state]:
+                if prev_state not in visited:
+                    visited.add(prev_state)
+                    queue.append(prev_state)
 
-    return can_reach
+    # Maximum number of attempts to find an accepting path
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        current_states = nfa._get_lambda_closures()[nfa.initial_state]
+        result = ""
 
+        # Try to build a matching string by traversing the NFA
+        for _ in range(max_length):
+            # Get all possible transitions from current states
+            possible_moves = []
+            for state in current_states:
+                if state in nfa.transitions:
+                    for symbol, next_states in nfa.transitions[state].items():
+                        if symbol:  # Skip lambda transitions
+                            for next_state in next_states:
+                                # If direct_match is True, only consider moves that can reach a final state
+                                if not direct_match or next_state in reachable_to_final:
+                                    possible_moves.append((symbol, next_state))
 
-def _random_walk_dfa(
-    dfa: DFA, can_reach_accept: dict, max_length: int
-) -> Optional[str]:
-    """
-    Start at dfa.initial_state, randomly choose transitions that lead to states
-    from which a final state is reachable, until we reach a final or exceed max_length.
-    Note that max_length is not a hard limit, but rather a wanted length.
-    Return the accepted string or None if we can't produce one.
-    """
-    hard_limit = 100
-    current_state = dfa.initial_state
-    out = []
-    # We'll limit the number of steps to avoid infinite loops
-    for length_counter in range(hard_limit):
-        # If current_state is final, maybe stop or continue?
-        # We'll do a random 50% chance to stop if final, producing a short string.
-        if current_state in dfa.final_states:
-            if length_counter >= max_length or random.random() < 0.5:
-                # 50% chance to end early if final
-                return "".join(out)
-        # gather possible transitions that lead to can_reach_accept state
-        next_options = [
-            (symbol, dest)
-            for symbol, dest in dfa.transitions[current_state].items()
-            if can_reach_accept[dest]
-        ]
+            # No more possible moves
+            if not possible_moves:
+                break
 
-        if not next_options:
-            # no valid transitions, so if we are final we can stop; else give up
-            if current_state in dfa.final_states:
-                return "".join(out)
+            # Choose moves with a bias toward making progress
+            # For longer patterns, we want to avoid getting stuck in loops
+            if len(possible_moves) > 1 and len(result) > wanted_length * 0.7:
+                # In later stages, prioritize moves that might lead to acceptance faster
+                # We'll do this by favoring transitions to states closer to final states
+
+                # Group possible moves by their target state
+                moves_by_state = {}
+                for symbol, next_state in possible_moves:
+                    if next_state not in moves_by_state:
+                        moves_by_state[next_state] = []
+                    moves_by_state[next_state].append(symbol)
+
+                # If we're in a state we've seen before, try to avoid it
+                # Convert states to string representation for hashing
+                current_state_str = "".join(str(s) for s in sorted(current_states))
+                if hasattr(dfa_string_matching, "seen_states"):
+                    if current_state_str in dfa_string_matching.seen_states:
+                        # Try to choose a different path than before
+                        dfa_string_matching.seen_states[current_state_str] += 1
+                    else:
+                        dfa_string_matching.seen_states[current_state_str] = 1
+                else:
+                    dfa_string_matching.seen_states = {current_state_str: 1}
+
+                # Bias towards less-visited transitions
+                weights = []
+                for symbol, next_state in possible_moves:
+                    next_state_str = "".join(
+                        str(s) for s in sorted(nfa._get_lambda_closures()[next_state])
+                    )
+                    visits = dfa_string_matching.seen_states.get(next_state_str, 0)
+                    # Weight inversely to number of visits (add 1 to avoid division by zero)
+                    weights.append(1.0 / (visits + 1))
+
+                # Normalize weights
+                total = sum(weights)
+                if total > 0:
+                    weights = [w / total for w in weights]
+                    symbol, next_state = random.choices(
+                        possible_moves, weights=weights, k=1
+                    )[0]
+                else:
+                    symbol, next_state = random.choice(possible_moves)
             else:
-                return None
+                # Standard random choice for early parts of the pattern
+                symbol, next_state = random.choice(possible_moves)
 
-        # choose a random transition
-        symbol, dest = random.choice(next_options)
-        out.append(symbol)
-        current_state = dest
+            result += symbol
 
-    # If we are here, we've reached max_length. Accept if the state is final
-    if current_state in dfa.final_states:
-        return "".join(out)
-    return None
+            # Update current states with the chosen move and its lambda closure
+            current_states = nfa._get_lambda_closures()[next_state]
+
+            # If we're in a final state, we might choose to stop
+            if not current_states.isdisjoint(nfa.final_states):
+                if random.random() < 0.3:
+                    break
+                # If we have reached the wanted length, we're more likely to stop
+                if len(result) >= wanted_length and random.random() < 0.9:
+                    break
+
+        # Check if our string is accepted by the NFA
+        if nfa.accepts_input(result):
+            return result
+
+        # If we failed, we'll try again with a clean slate
+        if hasattr(dfa_string_matching, "seen_states"):
+            delattr(dfa_string_matching, "seen_states")
+
+    raise ValueError(f"Failed to generate a string that the NFA accepts: {regex}")
