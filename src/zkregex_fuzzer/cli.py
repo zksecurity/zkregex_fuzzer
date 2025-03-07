@@ -20,7 +20,6 @@ from zkregex_fuzzer.fuzzer import (
     fuzz_with_grammar,
     fuzz_with_single_regex,
 )
-from zkregex_fuzzer.grammar import REGEX_GRAMMAR
 from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import enable_file_logging, logger
 from zkregex_fuzzer.report import Configuration, print_fuzzing_configuration
