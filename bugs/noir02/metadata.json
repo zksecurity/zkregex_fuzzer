@@ -1,0 +1,33 @@
+{
+    "config": {
+        "subcommand": "fuzz",
+        "regex_num": 100,
+        "inputs_num": 10,
+        "oracle": "invalid",
+        "target": "noir",
+        "valid_input_generator": null,
+        "invalid_input_generator": "mutation",
+        "seed": "47e00389-1578-4120-baae-ffc6dc7dc949",
+        "save": [
+            "FAILED"
+        ],
+        "save_output": "/Users/merricx/projects/zkregex_fuzzer",
+        "fuzzer": "grammar",
+        "grammar_max_depth": 5,
+        "max_input_size": 600,
+        "process_num": 1,
+        "circom_library": null,
+        "circom_prove": false,
+        "circom_ptau": null,
+        "noir_prove": false,
+        "logger_level": "INFO"
+    },
+    "regex": "[^A-ZA-Z5]$",
+    "inputs": [
+        "\b\b\b\b\b\b\b\b\u00d2UUUUUUUUU",
+        "\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1%OOOOOOO",
+        "\u00ad\u00ad\u00ad\u00ad\u00ad\u00ad\u00ad\u0015ZZZZ",
+        "V"
+    ],
+    "status": "FAILED"
+}

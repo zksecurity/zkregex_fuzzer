@@ -1,0 +1,32 @@
+{
+    "config": {
+        "subcommand": "fuzz",
+        "regex_num": 100,
+        "inputs_num": 20,
+        "oracle": "invalid",
+        "target": "circom",
+        "valid_input_generator": null,
+        "invalid_input_generator": "mutation",
+        "seed": "6d84ff2b-8e1a-4a79-8f7c-714ecb5ed3b2",
+        "save": [
+            "FAILED"
+        ],
+        "save_output": "/Users/merricx/projects/zkregex_fuzzer",
+        "fuzzer": "grammar",
+        "grammar_max_depth": 5,
+        "max_input_size": 600,
+        "process_num": 1,
+        "circom_library": [
+            "/Users/merricx/projects/zk-regex/node_modules"
+        ],
+        "circom_prove": false,
+        "circom_ptau": null,
+        "noir_prove": false,
+        "logger_level": "INFO"
+    },
+    "regex": "[^A-ZX]$",
+    "inputs": [
+        "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000;AAAAAAAA"
+    ],
+    "status": "FAILED"
+}
