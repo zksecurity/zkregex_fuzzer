@@ -8,6 +8,7 @@ Supported generators:
 - DFA random walk (TODO)
 """
 
+import random
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -144,3 +145,24 @@ class DFAWalkerGenerator(ValidInputGenerator):
     def generate_unsafe(self) -> str:
         inp = dfa_string_matching(self.regex)
         return inp
+
+
+class MixedGenerator(ValidInputGenerator):
+    """
+    Generate valid inputs for a regex using a mixed approach.
+    """
+
+    def __init__(self, regex: str):
+        super().__init__(regex)
+        self._max_attempts = 50
+        self.generators = [
+            # TODO: Add grammar based generator
+            # Currently, the grammar based generator is not mature enough
+            # GrammarBasedGenerator(regex),
+            RstrGenerator(regex),
+            ExrexGenerator(regex),
+            DFAWalkerGenerator(regex),
+        ]
+
+    def generate_unsafe(self) -> str:
+        return random.choice(self.generators).generate_unsafe()
