@@ -6,9 +6,10 @@ from zkregex_fuzzer.dfa import (
     has_multiple_accepting_states_regex,
     regex_to_dfa,
     transform_dfa_to_regex,
-    transform_dfa_to_single_accepting_state,
+    transform_dfa_to_single_final_state,
 )
 import re
+
 regex_with_multiple_accepting_states = [
     r"(ab|aba)",
     r"(ab|aba)*",
@@ -27,7 +28,7 @@ regex_without_multiple_accepting_states = [
     r"(hello)",
     r"(ab)*",
     r"(a|b|c)*",
-    r"((a|b|c)*abc)",  # This is somewhat complex, do we want to support this?
+    r"((a|b|c)*abc)",
     r"[a-zA-Z]+",
     r"[0-9]+",
     r"(abc|abcd|abcde)f",
@@ -40,9 +41,9 @@ single_solution_regexes = [
     r"(hello)",
 ]
 zkemail_regexes = [
-    ">[^<>]+<.*",
+    r">[^<>]+<.*",
     r"to:[^\r\n]+\r\n",
-    r")subject:[^\r\n]+\r\n",
+    r"subject:[^\r\n]+\r\n",
     r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~./]+@[A-Za-z0-9.\-@]+",
     r"dkim-signature:([a-z]+=[^;]+; )+bh=[a-zA-Z0-9+/=]+;",
     r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~./@]+@[A-Za-z0-9.\-]+",
@@ -75,17 +76,13 @@ def test_transform_dfa_to_regex():
 
 
 def test_transform_dfa_to_regex_with_multiple_accepting_states():
-    strategies = ["pick_one", "new_dummy", "merge"]
-    for strategy in strategies:
-        for regex in regex_with_multiple_accepting_states:
-            dfa = regex_to_dfa(regex)
-            transformed_dfa = transform_dfa_to_single_accepting_state(
-                dfa, strategy=strategy
-            )
-            assert len(transformed_dfa.final_states) == 1
-            transformed_regex = transform_dfa_to_regex(transformed_dfa)
-            new_dfa = regex_to_dfa(transformed_regex)
-            assert len(new_dfa.final_states) == 1
+    for regex in regex_with_multiple_accepting_states:
+        dfa = regex_to_dfa(regex)
+        transformed_dfa = transform_dfa_to_single_final_state(dfa)
+        assert len(transformed_dfa.final_states) == 1
+        transformed_regex = transform_dfa_to_regex(transformed_dfa)
+        new_dfa = regex_to_dfa(transformed_regex)
+        assert len(new_dfa.final_states) == 1
 
 
 def test_generate_dfa():
@@ -131,12 +128,6 @@ def test_dfa_string_matching():
 def test_dfa_string_matching_zkemail():
     for regex in zkemail_regexes:
         string = dfa_string_matching(regex)
-        print()
-        print("--------------------------------")
-        print(f"Testing regex: {regex}" )
-        print(f"String: {string}")
-        print("--------------------------------")
-        print()
         assert string is not None
         # we also need to check against re module
         assert re.match(regex, string) is not None

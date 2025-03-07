@@ -14,6 +14,7 @@ from typing import List
 import exrex
 import rstr
 
+from zkregex_fuzzer.dfa import dfa_string_matching
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.transformers import regex_to_grammar
 from zkregex_fuzzer.utils import check_if_string_is_valid, grammar_fuzzer, pretty_regex
@@ -130,3 +131,16 @@ class ExrexGenerator(ValidInputGenerator):
 
     def generate_unsafe(self) -> str:
         return exrex.getone(self.regex)
+
+
+class DFAWalkerGenerator(ValidInputGenerator):
+    """
+    Generate valid inputs for a regex using a DFA walker.
+    """
+
+    def __init__(self, regex: str):
+        super().__init__(regex)
+
+    def generate_unsafe(self) -> str:
+        inp = dfa_string_matching(self.regex)
+        return inp

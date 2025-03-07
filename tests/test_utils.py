@@ -140,13 +140,14 @@ def test_check_zkregex_rules_basic():
             r"(|^)abc*?[^xyz]$",
             (False, True),
         ),  # Complex invalid regex with lazy quantifier
+        (r"[a-zA-Z0-9._%+-]+", (True, True)),
         (r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", (True, True)),
         # 7. The common regexes from zkemail
         (r">[^<>]+<.*", (True, True)),
         (r"(\r\n|^)to:[^\r\n]+\r\n", (True, True)),
         (r"(\r\n|^)subject:[^\r\n]+\r\n", (True, True)),
-        # (r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~.\/]+@[A-Za-z0-9.\-@]+", (True, True)),
-        # (r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~.\/@]+@[A-Za-z0-9.\-]+", (True, True)),
+        (r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~.\/]+@[A-Za-z0-9.\-@]+", (True, True)),
+        (r"[A-Za-z0-9!#$%&'*+=?\-\^_`{|}~.\/@]+@[A-Za-z0-9.\-]+", (True, True)),
         (r"(\r\n|^)from:[^\r\n]+\r\n", (True, True)),
         (r"(\r\n|^)dkim-signature:([a-z]+=[^;]+; )+bh=[a-zA-Z0-9+/=]+;", (True, True)),
         (r"(\r\n|^)dkim-signature:([a-z]+=[^;]+; )+t=[0-9]+;", (True, True)),
