@@ -11,6 +11,7 @@ from pathlib import Path
 from zkregex_fuzzer.configs import (
     FUZZER_VERSION,
     GENERATORS,
+    INVALID_INPUT_GENERATORS,
     TARGETS,
     VALID_INPUT_GENERATORS,
 )

@@ -1,4 +1,5 @@
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
+from zkregex_fuzzer.invinpgen import ComplementBasedGenerator, MutationBasedGenerator
 from zkregex_fuzzer.regexgen import (
     DatabaseRegexGenerator,
     DFARegexGenerator,
