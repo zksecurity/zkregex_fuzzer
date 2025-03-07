@@ -37,6 +37,7 @@ VALID_INPUT_GENERATORS = {
 
 INVALID_INPUT_GENERATORS = {
     "mutation": MutationBasedGenerator,
+    "complement": ComplementBasedGenerator,
 }
 
 GENERATORS = {

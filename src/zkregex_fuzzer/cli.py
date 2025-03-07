@@ -304,7 +304,7 @@ def do_fuzz(args):
     elif args.fuzzer == "dfa":
         fuzz_with_dfa(
             target_implementation=args.target,
-            oracle_params=(args.oracle == "valid", args.valid_input_generator),
+            oracle_params=oracle_params,
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
             kwargs=kwargs,

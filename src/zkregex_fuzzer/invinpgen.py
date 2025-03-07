@@ -3,6 +3,7 @@ Invalid Input Generator.
 """
 
 import random
+import re
 from typing import List
 
 import exrex
@@ -74,21 +75,20 @@ class MutationBasedGenerator(InvalidInputGenerator):
     def __init__(self, regex: str):
         super().__init__(regex)
         self._mutation_attempts = 100
+        self._mutation_probability = 0.2
 
     def _mutate_input(self, valid_input: str) -> str:
         """
         Mutate the input.
         """
-        invalid_input = valid_input
+        invalid_input = list(valid_input)
         for _ in range(self._mutation_attempts):
             # randomly mutate characters at random positions
-            invalid_input = list(valid_input)
             for i in range(len(invalid_input)):
-                if random.random() < 0.1:
+                if random.random() < self._mutation_probability:
                     invalid_input[i] = chr(random.randint(0, 255))
-            invalid_input = "".join(invalid_input)
-            if invalid_input != valid_input:
-                break
+
+        invalid_input = "".join(invalid_input)
 
         # randomly add characters at beginning
         invalid_input = (
@@ -119,8 +119,51 @@ class ComplementBasedGenerator(InvalidInputGenerator):
     def __init__(self, regex: str):
         super().__init__(regex)
 
+    def _negate_character_class(self, regex: str) -> str:
+        """
+        Negate the character class.
+        """
+
+        def toggle_negation(match: re.Match) -> str:
+            char_class = match.group(1)
+            if char_class.startswith("^"):  # Already negated, remove '^'
+                return f"[{char_class[1:]}]"
+            else:  # Not negated, add '^'
+                return f"[^{char_class}]"
+
+        # Match character classes like [abc], [^xyz], [0-9], etc.
+        return re.sub(r"\[([^\]]+)\]", toggle_negation, regex)
+
+    def _negate_or_capture(self, regex: str) -> str:
+        """
+        Negate all literals inside or capture group.
+        """
+
+        def toggle_negation(match: re.Match) -> str:
+            literals = match.group(1).split("|")
+            replaced = "[^"
+            for literal in literals:
+                replaced += literal
+
+            return replaced + "]"
+
+        # match literals like (a|b|c)
+        return re.sub(r"\(([^\)]+)\)", toggle_negation, regex)
+
+    def _mutate_regex(self) -> str:
+        """
+        Mutate the regex.
+        """
+        regex = self.regex
+        regex = self._negate_character_class(regex)
+        regex = self._negate_or_capture(regex)
+
+        return regex
+
     def generate_unsafe(self) -> str:
         """
         Generate an invalid input by complementing the regex.
         """
-        raise NotImplementedError
+        complement_regex = self._mutate_regex()
+        invalid_input = exrex.getone(complement_regex)
+        return invalid_input
