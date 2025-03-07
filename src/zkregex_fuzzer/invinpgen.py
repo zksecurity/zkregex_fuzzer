@@ -21,7 +21,7 @@ class InvalidInputGenerator(ValidInputGenerator):
         """
         attempts = 0
         while attempts < self._max_attempts:
-            string = self.generate_unsafe()
+            string = self.generate_unsafe() or ""
             if string in self._generated_strings:
                 attempts += 1
                 continue
@@ -72,8 +72,8 @@ class MutationBasedGenerator(InvalidInputGenerator):
     Generate invalid inputs by mutating regex.
     """
 
-    def __init__(self, regex: str):
-        super().__init__(regex)
+    def __init__(self, regex: str, kwargs: dict = {}):
+        super().__init__(regex, kwargs)
         self._mutation_attempts = 100
         self._mutation_probability = 0.2
 
@@ -116,8 +116,8 @@ class ComplementBasedGenerator(InvalidInputGenerator):
     Generate invalid inputs by complementing the regex.
     """
 
-    def __init__(self, regex: str):
-        super().__init__(regex)
+    def __init__(self, regex: str, kwargs: dict = {}):
+        super().__init__(regex, kwargs)
 
     def _negate_character_class(self, regex: str) -> str:
         """
