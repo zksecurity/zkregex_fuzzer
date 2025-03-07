@@ -60,6 +60,16 @@ def fuzz_with_database(
     fuzz_with_regexes(regexes, inputs_num, target_runner, oracle_params, kwargs)
 
 
+def fuzz_with_single_regex(
+    regex: str,
+    inputs_num: int,
+    target_runner: type[Runner],
+    oracle_params: tuple[bool, str],
+    kwargs: dict,
+):
+    fuzz_with_regexes([regex], inputs_num, target_runner, oracle_params, kwargs)
+
+
 def fuzz_with_dfa(
     target_implementation: str,
     oracle_params: tuple[bool, str],

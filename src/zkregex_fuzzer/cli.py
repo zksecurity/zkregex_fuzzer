@@ -9,7 +9,12 @@ import uuid
 from pathlib import Path
 
 from zkregex_fuzzer.configs import GENERATORS, TARGETS, VALID_INPUT_GENERATORS
-from zkregex_fuzzer.fuzzer import fuzz_with_database, fuzz_with_dfa, fuzz_with_grammar
+from zkregex_fuzzer.fuzzer import (
+    fuzz_with_database,
+    fuzz_with_dfa,
+    fuzz_with_grammar,
+    fuzz_with_single_regex,
+)
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
 from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
@@ -73,6 +78,11 @@ def fuzz_parser():
         choices=list(GENERATORS.keys()),
         help=f"The fuzzer to use for regex generation (options: {list(GENERATORS.keys())}).",
         required=True,
+    )
+    parser.add_argument(
+        "--regex",
+        type=str,
+        help="The regex to fuzz when passing --fuzzer single.",
     )
     parser.add_argument(
         "--grammar-max-depth",
@@ -246,6 +256,17 @@ def do_fuzz(args):
             oracle_params=(args.oracle == "valid", args.valid_input_generator),
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
+            kwargs=kwargs,
+        )
+    elif args.fuzzer == "single":
+        if not args.regex:
+            print("Regex is required when passing --fuzzer single.")
+            exit(1)
+        fuzz_with_single_regex(
+            regex=args.regex,
+            inputs_num=args.inputs_num,
+            target_runner=TARGETS[args.target],
+            oracle_params=(args.oracle == "valid", args.valid_input_generator),
             kwargs=kwargs,
         )
 

@@ -35,4 +35,5 @@ GENERATORS = {
     "grammar": GrammarRegexGenerator,
     "database": DatabaseRegexGenerator,
     "dfa": DFARegexGenerator,
+    "single": None,  # Just pass a regex to use
 }
