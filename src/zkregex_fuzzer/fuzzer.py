@@ -107,7 +107,7 @@ def fuzz_with_regexes(
         regexes_inputs = []
         for regex in regexes:
             try:
-                regex_inputs = generator(regex).generate_many(
+                regex_inputs = generator(regex, kwargs).generate_many(
                     inputs_num, max_input_size
                 )
             except ValueError as e:

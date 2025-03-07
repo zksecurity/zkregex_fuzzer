@@ -133,6 +133,12 @@ def fuzz_parser():
         default="INFO",
         help="Set the logger level (default: INFO).",
     )
+    parser.add_argument(
+        "--predefined-inputs",
+        nargs="*",
+        type=str,
+        help="Predefined inputs to use for the fuzzer.",
+    )
 
     return parser
 
@@ -160,6 +166,10 @@ def reproduce_parser():
 def do_fuzz(args):
     if args.oracle == "valid" and not args.valid_input_generator:
         print("Valid input generator is required for valid oracle.")
+        exit(1)
+
+    if args.valid_input_generator == "predefined" and not args.predefined_inputs:
+        print("Predefined inputs are required for predefined valid input generator.")
         exit(1)
 
     if args.target == "circom":

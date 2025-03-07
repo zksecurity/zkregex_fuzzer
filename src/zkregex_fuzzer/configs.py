@@ -10,6 +10,7 @@ from zkregex_fuzzer.vinpgen import (
     ExrexGenerator,
     GrammarBasedGenerator,
     MixedGenerator,
+    PredefinedGenerator,
     RstrGenerator,
 )
 
@@ -29,6 +30,7 @@ VALID_INPUT_GENERATORS = {
     "exrex": ExrexGenerator,
     "dfa": DFAWalkerGenerator,
     "mixed": MixedGenerator,
+    "predefined": PredefinedGenerator,
 }
 
 GENERATORS = {

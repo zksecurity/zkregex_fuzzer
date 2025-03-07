@@ -10,7 +10,7 @@ Supported generators:
 
 import random
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 import exrex
 import rstr
@@ -26,7 +26,7 @@ class ValidInputGenerator(ABC):
     Generate valid inputs for a regex.
     """
 
-    def __init__(self, regex: str):
+    def __init__(self, regex: str, kwargs: dict):
         self.regex = regex
         self._max_attempts = 10
         self._generated_strings = set()
@@ -38,6 +38,9 @@ class ValidInputGenerator(ABC):
         attempts = 0
         while attempts < self._max_attempts:
             string = self.generate_unsafe()
+            if string is None:
+                attempts += 1
+                continue
             if string in self._generated_strings:
                 attempts += 1
                 continue
@@ -82,7 +85,7 @@ class ValidInputGenerator(ABC):
         return valid_inputs
 
     @abstractmethod
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         """
         Generate a valid input for the regex without checking if it is valid.
         """
@@ -94,14 +97,14 @@ class GrammarBasedGenerator(ValidInputGenerator):
     Generate valid inputs for a regex using a grammar.
     """
 
-    def __init__(self, regex: str):
-        super().__init__(regex)
+    def __init__(self, regex: str, kwargs: dict):
+        super().__init__(regex, kwargs)
         self.grammar = regex_to_grammar(regex)
         self._start_symbol = "<start>"
         self._max_nonterminals = 10
         self._max_expansion_trials = 100
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         return grammar_fuzzer(
             self.grammar,
             start_symbol=self._start_symbol,
@@ -115,10 +118,10 @@ class RstrGenerator(ValidInputGenerator):
     Generate valid inputs for a regex using rstr.xeger.
     """
 
-    def __init__(self, regex: str):
-        super().__init__(regex)
+    def __init__(self, regex: str, kwargs: dict):
+        super().__init__(regex, kwargs)
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         return rstr.xeger(self.regex)
 
 
@@ -127,10 +130,10 @@ class ExrexGenerator(ValidInputGenerator):
     Generate valid inputs for a regex using exrex.getone.
     """
 
-    def __init__(self, regex: str):
-        super().__init__(regex)
+    def __init__(self, regex: str, kwargs: dict):
+        super().__init__(regex, kwargs)
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         return exrex.getone(self.regex)
 
 
@@ -139,10 +142,10 @@ class DFAWalkerGenerator(ValidInputGenerator):
     Generate valid inputs for a regex using a DFA walker.
     """
 
-    def __init__(self, regex: str):
-        super().__init__(regex)
+    def __init__(self, regex: str, kwargs: dict):
+        super().__init__(regex, kwargs)
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         inp = dfa_string_matching(self.regex)
         return inp
 
@@ -152,17 +155,33 @@ class MixedGenerator(ValidInputGenerator):
     Generate valid inputs for a regex using a mixed approach.
     """
 
-    def __init__(self, regex: str):
-        super().__init__(regex)
+    def __init__(self, regex: str, kwargs: dict):
+        super().__init__(regex, kwargs)
         self._max_attempts = 50
         self.generators = [
             # TODO: Add grammar based generator
             # Currently, the grammar based generator is not mature enough
             # GrammarBasedGenerator(regex),
-            RstrGenerator(regex),
-            ExrexGenerator(regex),
-            DFAWalkerGenerator(regex),
+            RstrGenerator(regex, kwargs),
+            ExrexGenerator(regex, kwargs),
+            DFAWalkerGenerator(regex, kwargs),
         ]
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         return random.choice(self.generators).generate_unsafe()
+
+
+class PredefinedGenerator(ValidInputGenerator):
+    """
+    Generate valid inputs for a regex using a predefined list of inputs.
+    """
+
+    def __init__(self, regex: str, kwargs: dict):
+        super().__init__(regex, kwargs)
+        self.predefined_inputs = iter(kwargs.get("predefined_inputs", []))
+
+    def generate_unsafe(self) -> Optional[str]:
+        try:
+            return next(self.predefined_inputs)
+        except StopIteration:
+            return None
