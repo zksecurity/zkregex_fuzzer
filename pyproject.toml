@@ -24,6 +24,7 @@ dependencies = [
   "exrex",
   "joblib",
   #"automata-lib",
+  "automata-lib @ git+https://github.com/StefanosChaliasos/automata.git@add-support-for-charclass"
 ]
 
 [project.optional-dependencies]
