@@ -3,8 +3,9 @@ Invalid Input Generator.
 """
 
 import random
-import exrex
 from typing import List
+
+import exrex
 
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.utils import check_if_string_is_valid, pretty_regex
@@ -72,14 +73,15 @@ class MutationBasedGenerator(InvalidInputGenerator):
 
     def __init__(self, regex: str):
         super().__init__(regex)
+        self._mutation_attempts = 100
 
     def _mutate_input(self, valid_input: str) -> str:
         """
         Mutate the input.
         """
         invalid_input = valid_input
-        for _ in range(10):
-            # randomly mutate characters
+        for _ in range(self._mutation_attempts):
+            # randomly mutate characters at random positions
             invalid_input = list(valid_input)
             for i in range(len(invalid_input)):
                 if random.random() < 0.1:
