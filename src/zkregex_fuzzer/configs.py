@@ -14,6 +14,8 @@ from zkregex_fuzzer.vinpgen import (
     RstrGenerator,
 )
 
+FUZZER_VERSION = "0.1.0"
+
 TARGETS = {
     "circom": CircomRunner,
     "noir": NoirRunner,

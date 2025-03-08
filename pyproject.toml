@@ -23,6 +23,7 @@ dependencies = [
   "rstr",
   "exrex",
   "joblib",
+  "tqdm",
   #"automata-lib",
   "automata-lib @ git+https://github.com/StefanosChaliasos/automata.git@add-support-for-charclass"
 ]
@@ -37,7 +38,7 @@ dev = [
 line-length = 88
 target-version = "py312"
 lint.select = ["E", "F", "W", "I"]
-lint.ignore = ["F401", "E501"]
+lint.ignore = ["F401", "E501", "W291", "W293"]
 
 [tool.ruff.format]
 quote-style = "double"

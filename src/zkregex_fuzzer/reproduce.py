@@ -44,24 +44,57 @@ def simulate_harness(directory: Path):
     target_runner = TARGETS[metadata["config"]["target"]]
     oracle = True if metadata["config"]["oracle"] == "valid" else False
 
-    print(f"Reproducing regex: {pretty_regex(regex)}")
-    print("-" * 80)
-    print(f"Directory path: {directory}")
-    print(f"Inputs: {inputs}")
-    print(f"Expected result: {expected_status}")
-    print("-" * 80)
+    # Create a nicely formatted heading
+    print("\n" + "═" * 80)
+    print("🔍 REPRODUCING BUG REPORT")
+    print("═" * 80)
+
+    # Display regex with nice formatting
+    print("📋 Regular Expression:")
+    print(f"   {pretty_regex(regex)}")
+
+    # Display metadata in a structured way
+    print("\n📁 Metadata:")
+    print(f"   • Directory: {directory}")
+    print(f"   • Target: {kwargs['target']}")
+    print(f"   • Oracle: {kwargs['oracle']}")
+    print(f"   • Expected status: {expected_status}")
+
+    # Format the inputs more nicely
+    print("\n📥 Test Inputs:")
+    if not inputs:
+        print("   • No inputs provided")
+    else:
+        for i, inp in enumerate(inputs, 1):
+            # Truncate very long inputs with ellipsis
+            display_input = inp
+            if len(inp) > 70:
+                display_input = inp[:67] + "..."
+
+            # Escape newlines and tabs for better display
+            display_input = (
+                display_input.replace("\n", "\\n")
+                .replace("\t", "\\t")
+                .replace("\r", "\\r")
+            )
+            print(f'   {i}. "{display_input}"')
+
+    print("\n" + "─" * 80)
+    print("🔬 REPRODUCTION RESULTS")
+    print("─" * 80)
 
     try:
         runner = target_runner(regex, kwargs)
     except RegexCompileError as e:
         if expected_status == HarnessStatus.COMPILE_ERROR.name:
-            print("Reproduce completed successfully!")
-            print("-" * 80)
-            print(e)
+            print("✅ Successfully reproduced COMPILE_ERROR!")
+            print("─" * 80)
+            print(f"🛑 Error details:\n{e}")
         else:
-            print(f"Unexpected COMPILE_ERROR reproduce status: {e}")
+            print(f"❌ Unexpected COMPILE_ERROR status (expected {expected_status})")
+            print(f"🛑 Error details:\n{e}")
 
-        print("=" * 80)
+        print("═" * 80 + "\n")
         return
 
     failed_inputs = []
@@ -73,22 +106,40 @@ def simulate_harness(directory: Path):
 
         except RegexRunError as e:
             if expected_status == HarnessStatus.RUN_ERROR.name:
-                print("Reproduce completed successfully!")
-                print("-" * 80)
-                print(e)
+                print("✅ Successfully reproduced RUN_ERROR!")
+                print("─" * 80)
+                print(f"🛑 Error details:\n{e}")
             else:
-                print(f"Unexpected RUN_ERROR reproduce status: {e}")
+                print(f"❌ Unexpected RUN_ERROR status (expected {expected_status})")
+                print(f"🛑 Error details:\n{e}")
 
     if len(failed_inputs) > 0:
         if expected_status == HarnessStatus.FAILED.name:
-            print("Reproduce completed successfully!")
+            print("✅ Successfully reproduced FAILED status!")
+            print(f"   {len(failed_inputs)}/{len(inputs)} inputs failed validation")
+
+            # Show the failed inputs
+            print("\n⚠️ Failed inputs:")
+            for i, inp in enumerate(failed_inputs, 1):
+                display_input = inp
+                if len(inp) > 70:
+                    display_input = inp[:67] + "..."
+                display_input = (
+                    display_input.replace("\n", "\\n")
+                    .replace("\t", "\\t")
+                    .replace("\r", "\\r")
+                )
+                print(f'   {i}. "{display_input}"')
         else:
-            print(f"Unexpected FAILED reproduce status: {failed_inputs}")
+            print(f"❌ Unexpected FAILED status (expected {expected_status})")
+            print(f"   {len(failed_inputs)}/{len(inputs)} inputs failed validation")
     else:
         if expected_status == HarnessStatus.SUCCESS.name:
-            print("Reproduce completed successfully!")
+            print("✅ Successfully reproduced SUCCESS status!")
+            print("   All inputs passed validation")
         else:
-            print(f"Unexpected SUCCESS reproduce status: {inputs}")
+            print(f"❌ Unexpected SUCCESS status (expected {expected_status})")
+            print("   All inputs passed validation")
 
     runner.clean()
-    print("=" * 80)
+    print("═" * 80 + "\n")

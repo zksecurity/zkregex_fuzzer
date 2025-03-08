@@ -8,7 +8,12 @@ import random
 import uuid
 from pathlib import Path
 
-from zkregex_fuzzer.configs import GENERATORS, TARGETS, VALID_INPUT_GENERATORS
+from zkregex_fuzzer.configs import (
+    FUZZER_VERSION,
+    GENERATORS,
+    TARGETS,
+    VALID_INPUT_GENERATORS,
+)
 from zkregex_fuzzer.fuzzer import (
     fuzz_with_database,
     fuzz_with_dfa,
@@ -17,7 +22,8 @@ from zkregex_fuzzer.fuzzer import (
 )
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
 from zkregex_fuzzer.harness import HarnessStatus
-from zkregex_fuzzer.logger import logger
+from zkregex_fuzzer.logger import enable_file_logging, logger
+from zkregex_fuzzer.report import Configuration, print_fuzzing_configuration
 from zkregex_fuzzer.reproduce import reproduce
 from zkregex_fuzzer.runner.circom import (
     CircomSubprocess,
@@ -70,7 +76,7 @@ def fuzz_parser():
     parser.add_argument(
         "--save-output",
         type=str,
-        default=os.getcwd(),
+        default=os.path.join(os.getcwd(), "fuzzer_sessions", str(uuid.uuid4())[:5]),
         help="The output path where the reproducible files will be stored (default: .)",
     )
     parser.add_argument(
@@ -172,16 +178,22 @@ def do_fuzz(args):
         print("Predefined inputs are required for predefined valid input generator.")
         exit(1)
 
+    logging_file = None
+    if args.process_num > 1:
+        logging_file = enable_file_logging()
+
+    zk_regex_version = None
+    circom_version = None
+    snarkjs_version = None
+    noir_version = None
+    bb_version = None
+
     if args.target == "circom":
         try:
             zk_regex_version = ZkRegexSubprocess.get_installed_version()
             circom_version = CircomSubprocess.get_installed_version()
-            print("-" * 80)
-            print(f"zk-regex: {zk_regex_version}")
-            print(f"Circom: {circom_version}")
             if args.circom_prove:
                 snarkjs_version = SnarkjsSubprocess.get_installed_version()
-                print(f"SnarkJS: {snarkjs_version}")
 
         except ValueError as e:
             print(e)
@@ -216,31 +228,43 @@ def do_fuzz(args):
         try:
             zk_regex_version = ZkRegexSubprocess.get_installed_version()
             noir_version = NoirSubprocess.get_installed_version()
-            print("-" * 80)
-            print(f"zk-regex: {zk_regex_version}")
-            print(f"Noir: {noir_version}")
             if args.noir_prove:
                 bb_version = BarretenbergSubprocess.get_installed_version()
-                print(f"Barretenberg: {bb_version}")
         except ValueError as e:
             print(e)
             exit(1)
 
-    print("-" * 80)
-    print(f"Fuzzing with {args.fuzzer} fuzzer.")
-    print("=" * 80)
-    print(f"Target: {args.target}")
-    print(f"Oracle: {args.oracle}")
-    print(f"Valid input generator: {args.valid_input_generator}")
-    print(f"Regex num: {args.regex_num}")
-    print(f"Inputs num: {args.inputs_num}")
-    print(f"Max depth: {args.grammar_max_depth}")
-    print("-" * 80)
+    configuration = Configuration(
+        fuzzer_version=FUZZER_VERSION,
+        fuzzer=args.fuzzer,
+        target=args.target,
+        oracle=args.oracle,
+        valid_input_generator=args.valid_input_generator,
+        regex_num=args.regex_num,
+        inputs_num=args.inputs_num,
+        grammar_max_depth=args.grammar_max_depth,
+        seed=args.seed,
+        zk_regex_version=zk_regex_version,
+        circom_version=circom_version,
+        snarkjs_version=snarkjs_version,
+        noir_version=noir_version,
+        bb_version=bb_version,
+        num_process=args.process_num,
+        logging_file=logging_file,
+        output_path=args.save_output,
+        save_options=args.save,
+    )
+
+    # Use the new reporting function to print configuration
+    print_fuzzing_configuration(configuration)
 
     kwargs = vars(args)
 
     # set global seed
     random.seed(args.seed)
+
+    dir_path = Path(args.save_output)
+    dir_path.mkdir(parents=True, exist_ok=True)
 
     if args.fuzzer == "grammar":
         fuzz_with_grammar(
@@ -279,6 +303,10 @@ def do_fuzz(args):
             oracle_params=(args.oracle == "valid", args.valid_input_generator),
             kwargs=kwargs,
         )
+
+    # if dir_path is empty, delete it
+    if not os.listdir(dir_path):
+        os.rmdir(dir_path)
 
 
 def do_reproduce(args):

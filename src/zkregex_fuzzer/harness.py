@@ -39,6 +39,8 @@ class HarnessResult:
     status: HarnessStatus
     # Error message (if any)
     error_message: str = ""
+    # Directory path (if any)
+    output_path: str = ""
 
 
 def _return_harness_result(
@@ -66,6 +68,8 @@ def _return_harness_result(
         metadata_path = Path(dir_path) / "metadata.json"
         with open(metadata_path.absolute(), "w") as f:
             f.write(metadata_json)
+
+        result.output_path = str(dir_path)
 
     if runner:
         runner.clean()
@@ -126,7 +130,6 @@ def harness(
         )
 
     failed_inputs = []
-
     for input in inputs:
         primary_runner_str = None
         try:
