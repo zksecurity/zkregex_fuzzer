@@ -48,8 +48,15 @@ class CircomRunner(Runner):
         base_json = {"parts": []}
         # TODO: handle the following if is_public is set to True:
         # the section containing this ^ must be non-public (is_public: false).
-        regex_parts = {"regex_def": regex, "is_public": False}
-        base_json["parts"].append(regex_parts)
+        if regex.startswith("^"):
+            regex_parts = [
+                {"regex_def": regex[0], "is_public": False},
+                {"regex_def": regex[1:], "is_public": True},
+            ]
+        else:
+            regex_parts = [{"regex_def": regex, "is_public": True}]
+
+        base_json["parts"] = regex_parts
         regex_json = json.dumps(base_json)
 
         # Write the JSON to a temporary file
@@ -131,11 +138,15 @@ class CircomRunner(Runner):
         result = SnarkjsSubprocess.extract_witness(witness_path)
 
         # TODO: get and convert substr output to its string representation
+        substr_length = len(numeric_input)
+        substr_output_numeric = result[2 : substr_length + 2]
+        substr_output = "".join([chr(int(c)) for c in substr_output_numeric])
+        substr_output = substr_output.strip("\x00")  # remove zero padding
 
         # Return the output of the match
         output = int(result[1])
         logger.debug("Matching regex ends")
-        return output == 1, ""
+        return output == 1, substr_output
 
     def clean(self):
         # Remove all temporary files

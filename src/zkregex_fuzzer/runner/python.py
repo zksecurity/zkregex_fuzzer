@@ -5,6 +5,7 @@ Runner for Python re module.
 import re
 
 from zkregex_fuzzer.runner.base_runner import RegexCompileError, RegexRunError, Runner
+from zkregex_fuzzer.utils import python_substring
 
 
 class PythonReRunner(Runner):
@@ -32,7 +33,7 @@ class PythonReRunner(Runner):
         try:
             match_input = self._compiled_regex.match(input)
             match_success = match_input is not None
-            str_result = match_input[0] if match_success else ""
+            str_result = python_substring(self._regex, input)
             return (match_success, str_result)
         except re.error as e:
             raise RegexRunError(f"Error matching regex: {e}")
