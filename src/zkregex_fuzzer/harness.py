@@ -162,9 +162,14 @@ def harness(
             if secondary_runner_status != oracle:
                 failed_inputs.append(input)
 
-            # TODO: support for substr matching
-            # elif secondary_runner_status == oracle and primary_runner_str != secondary_runner_str:
-            # failed_inputs.append(input)
+            elif (
+                secondary_runner_status == oracle
+                and primary_runner_str != secondary_runner_str
+            ):
+                print(f"Primary runner: {repr(primary_runner_str)}")
+                print(f"Secondary runner: {repr(secondary_runner_str)}")
+                exit(0)
+                failed_inputs.append(input)
         except RegexRunError as e:
             return _return_harness_result(
                 HarnessResult(

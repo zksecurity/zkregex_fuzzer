@@ -210,3 +210,28 @@ def extract_parts(s: str) -> list[str]:
         result.append("".join(current_part))
 
     return [part for part in result if part]
+
+
+def split_caret_parts(regex: str) -> list[str]:
+    """
+    Given regex, split it into parts before and after the caret '^' (exclude [^..]).
+    """
+    # find (^..) or (..^)
+    parts = re.sub(r"\(([\s\S]+\|\^|\^[\s\S]+)\)", "[SEPARATOR]", regex)
+    parts = parts.split("[SEPARATOR]")
+    return parts
+
+
+def python_substring(regex: str, input: str) -> str:
+    """
+    Given regex, return the python substring that matches the regex.
+    """
+    parts = split_caret_parts(regex)
+    substr = []
+    for part in parts:
+        if part:
+            match = re.search(part, input)
+            if match:
+                substr.append(match.group())
+
+    return "".join(substr)
