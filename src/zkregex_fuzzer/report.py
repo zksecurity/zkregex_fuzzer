@@ -161,7 +161,7 @@ def print_fuzzing_configuration(configuration: Configuration):
         + [
             f"🎯 Oracle: {configuration.oracle}",
             f"🔄 Valid input generator: {configuration.valid_input_generator}",
-            f"🔄 Valid input generator: {configuration.invalid_input_generator}",
+            f"🔄 Invalid input generator: {configuration.invalid_input_generator}",
             f"🔢 Regex num: {configuration.regex_num}",
             f"📥 Inputs num: {configuration.inputs_num}",
             f"🔍 Max depth: {configuration.grammar_max_depth}",
