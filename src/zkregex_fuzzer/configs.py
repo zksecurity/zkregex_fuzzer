@@ -1,5 +1,9 @@
 from zkregex_fuzzer.grammar import REGEX_GRAMMAR
-from zkregex_fuzzer.invinpgen import ComplementBasedGenerator, MutationBasedGenerator
+from zkregex_fuzzer.invinpgen import (
+    ComplementBasedGenerator,
+    MutationBasedGenerator,
+    NFAInvalidGenerator,
+)
 from zkregex_fuzzer.regexgen import (
     DatabaseRegexGenerator,
     DFARegexGenerator,
@@ -39,6 +43,7 @@ VALID_INPUT_GENERATORS = {
 INVALID_INPUT_GENERATORS = {
     "mutation": MutationBasedGenerator,
     "complement": ComplementBasedGenerator,
+    "nfa": NFAInvalidGenerator,
 }
 
 GENERATORS = {

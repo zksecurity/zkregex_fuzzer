@@ -245,6 +245,7 @@ def do_fuzz(args):
         target=args.target,
         oracle=args.oracle,
         valid_input_generator=args.valid_input_generator,
+        invalid_input_generator=args.invalid_input_generator,
         regex_num=args.regex_num,
         inputs_num=args.inputs_num,
         grammar_max_depth=args.grammar_max_depth,
@@ -270,6 +271,7 @@ def do_fuzz(args):
 
     dir_path = Path(args.save_output)
     dir_path.mkdir(parents=True, exist_ok=True)
+
     if args.oracle == "valid":
         if not args.valid_input_generator:
             print("Valid input generator is required for valid oracle.")

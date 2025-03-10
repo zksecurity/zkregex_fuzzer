@@ -15,6 +15,7 @@ class Configuration:
     target: str
     oracle: str
     valid_input_generator: str
+    invalid_input_generator: str
     regex_num: int
     inputs_num: int
     grammar_max_depth: int
@@ -81,6 +82,7 @@ Fuzzer: {configuration.fuzzer}
 Target: {configuration.target}
 Oracle: {configuration.oracle}
 Valid input generator: {configuration.valid_input_generator}
+Invalid input generator: {configuration.valid_input_generator}
 Regex num: {configuration.regex_num}
 Inputs num: {configuration.inputs_num}
 Grammar max depth: {configuration.grammar_max_depth}
@@ -159,6 +161,7 @@ def print_fuzzing_configuration(configuration: Configuration):
         + [
             f"🎯 Oracle: {configuration.oracle}",
             f"🔄 Valid input generator: {configuration.valid_input_generator}",
+            f"🔄 Valid input generator: {configuration.invalid_input_generator}",
             f"🔢 Regex num: {configuration.regex_num}",
             f"📥 Inputs num: {configuration.inputs_num}",
             f"🔍 Max depth: {configuration.grammar_max_depth}",

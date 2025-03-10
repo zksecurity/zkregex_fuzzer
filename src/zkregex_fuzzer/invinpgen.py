@@ -8,6 +8,7 @@ from typing import List
 
 import exrex
 
+from zkregex_fuzzer.dfa import regex_to_nfa
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.utils import check_if_string_is_valid, pretty_regex
 from zkregex_fuzzer.vinpgen import ValidInputGenerator
@@ -166,4 +167,47 @@ class ComplementBasedGenerator(InvalidInputGenerator):
         """
         complement_regex = self._mutate_regex()
         invalid_input = exrex.getone(complement_regex)
+        return invalid_input
+
+
+class NFAInvalidGenerator(InvalidInputGenerator):
+
+    def __init__(self, regex: str, kwargs: dict = {}):
+        super().__init__(regex, kwargs)
+
+    def generate_unsafe(self) -> str:
+        nfa = regex_to_nfa(self.regex)
+        initial_state = nfa.initial_state
+        final_states = nfa.final_states
+        transitions = nfa.transitions
+        supported_symbols = set(nfa.input_symbols)
+        invalid_input = ""
+
+        # Traverse transitions into final state
+        is_already_invalid = False
+        current_state = initial_state
+        while True:
+            next_transition = transitions[current_state]
+            # Break if next_transition is empty
+            if not next_transition:
+                break
+
+            all_valid_inputs = set(next_transition.keys())
+            all_invalid_inputs = supported_symbols - all_valid_inputs
+            selected_next_input = random.choice(list(all_valid_inputs))
+
+            # Use invalid input with prob. 0.5, else use valid input
+            if all_invalid_inputs and random.random() < 0.5:
+                invalid_input += random.choice(list(all_invalid_inputs))
+                is_already_invalid = True
+            else:
+                invalid_input += random.choice(list(all_valid_inputs))
+
+            # get next transition state
+            current_state = random.choice(list(next_transition[selected_next_input]))
+
+            if current_state in final_states:
+                if is_already_invalid and random.random() < 0.2:
+                    break
+
         return invalid_input
