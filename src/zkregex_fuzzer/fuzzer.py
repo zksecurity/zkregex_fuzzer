@@ -263,7 +263,11 @@ def harness_runtime(
     primary_runner = PythonReRunner
     if kwargs.get("process_num", 1) > 1:
         set_logging_enabled(False)
-    generator = VALID_INPUT_GENERATORS[oracle_generator]
+    if oracle:
+        generator = VALID_INPUT_GENERATORS[oracle_generator]
+    else:
+        generator = INVALID_INPUT_GENERATORS[oracle_generator]
+
     regex_inputs = []
     try:
         regex_inputs = generator(regex, kwargs).generate_many(

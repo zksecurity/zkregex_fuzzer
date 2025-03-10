@@ -25,17 +25,24 @@ def get_supported_symbols() -> set[str]:
     return ASCII_CHARS
 
 
-def regex_to_dfa(regex: str) -> DFA:
+def regex_to_nfa(regex: str) -> NFA:
     """
-    Convert a regex to a DFA.
+    Convert a regex to an NFA.
     """
     symbols = get_supported_symbols()
     regex = unwrap_regex(regex)
 
     try:
-        nfa = NFA.from_regex(regex, input_symbols=symbols)
+        return NFA.from_regex(regex, input_symbols=symbols)
     except Exception as e:
         raise ValueError(f"Failed to parse '{regex}' into an automaton: {e}")
+
+
+def regex_to_dfa(regex: str) -> DFA:
+    """
+    Convert a regex to a DFA.
+    """
+    nfa = regex_to_nfa(regex)
     try:
         return DFA.from_nfa(nfa, minify=True)
     except Exception as e:
