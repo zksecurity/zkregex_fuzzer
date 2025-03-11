@@ -1,14 +1,16 @@
 import random
-import pytest
 import re
+from typing import List, Type
+
+import pytest
+
 from zkregex_fuzzer.invinpgen import (
     ComplementBasedGenerator,
+    InvalidInputGenerator,
     MutationBasedGenerator,
     NFAInvalidGenerator,
-    InvalidInputGenerator,
 )
 from zkregex_fuzzer.utils import check_if_string_is_valid
-from typing import Type, List
 
 
 def test_mutation_based_generator():
