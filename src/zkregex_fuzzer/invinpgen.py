@@ -15,7 +15,6 @@ from zkregex_fuzzer.vinpgen import ValidInputGenerator
 
 
 class InvalidInputGenerator(ValidInputGenerator):
-
     def _generate(self) -> str:
         """
         Generate an invalid input for the regex.
@@ -78,10 +77,15 @@ class MutationBasedGenerator(InvalidInputGenerator):
         super().__init__(regex, kwargs)
         self._mutation_attempts = 100
         self._mutation_probability = 0.2
+        self._early_end_probability = 0.75
+        self._prepend_probability = 0.15
+        self._append_probability = 0.15
 
     def _mutate_input(self, valid_input: str) -> str:
         """
         Mutate the input.
+
+        # TODO: handle escape characters
         """
         invalid_input = list(valid_input)
         for _ in range(self._mutation_attempts):
@@ -89,18 +93,25 @@ class MutationBasedGenerator(InvalidInputGenerator):
             for i in range(len(invalid_input)):
                 if random.random() < self._mutation_probability:
                     invalid_input[i] = chr(random.randint(0, 255))
+                    if (
+                        not re.compile(valid_input).match("".join(invalid_input))
+                        and random.random() < self._early_end_probability
+                    ):
+                        break
 
         invalid_input = "".join(invalid_input)
 
         # randomly add characters at beginning
-        invalid_input = (
-            chr(random.randint(0, 255)) * random.randint(0, 10) + invalid_input
-        )
+        if random.random() < self._prepend_probability:
+            invalid_input = (
+                chr(random.randint(0, 255)) * random.randint(1, 10) + invalid_input
+            )
 
         # randomly add characters at end
-        invalid_input = invalid_input + chr(random.randint(0, 255)) * random.randint(
-            0, 10
-        )
+        if random.random() < self._append_probability:
+            invalid_input = invalid_input + chr(
+                random.randint(0, 255)
+            ) * random.randint(1, 10)
 
         return invalid_input
 
@@ -128,6 +139,7 @@ class ComplementBasedGenerator(InvalidInputGenerator):
     def __init__(self, regex: str, kwargs: dict = {}):
         super().__init__(regex, kwargs)
         self._mutate_probability = 0.2
+        self._mutate_multiple_times_probability = 0.2
 
     def _negate_character_class(self, regex: str) -> str:
         """
@@ -263,9 +275,20 @@ class ComplementBasedGenerator(InvalidInputGenerator):
         Mutate the regex.
         """
         regex = self.regex
-        regex = self._negate_character_class(regex)
-        regex = self._mutate_literal(regex)
-        regex = self._negate_or_capture(regex)
+
+        # In a very rare case we could mutate the regex multiple times
+        # and produce a valid regex
+
+        mutations = [
+            self._negate_character_class,
+            self._mutate_literal,
+            self._negate_or_capture,
+        ]
+        while True:
+            mutation = random.choice(mutations)
+            regex = mutation(regex)
+            if random.random() > self._mutate_multiple_times_probability:
+                break
 
         return regex
 
@@ -293,7 +316,7 @@ class NFAInvalidGenerator(InvalidInputGenerator):
     def __init__(self, regex: str, kwargs: dict = {}):
         super().__init__(regex, kwargs)
         self._mutation_probability = 0.2
-        self._early_end_probability = 0.5
+        self._early_end_probability = 0.6
         self._max_cycle = 100
 
     def generate_unsafe(self) -> str:
