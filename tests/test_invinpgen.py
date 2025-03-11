@@ -22,7 +22,13 @@ def test_mutation_based_generator():
 
 def test_complement_based_generator():
 
-    regexes = [r"(A|4|V|p)+", r"[a-z]+[0-9]{7}", r"[^7A-Z5].*$"]
+    regexes = [
+        r"\($",
+        r"(A|4|V|p)+",
+        r"[a-z]+[0-9]{7}",
+        r"^[^7A-Z5].*$",
+        r"(a|b|c)test[0-9]",
+    ]
 
     for regex in regexes:
         generator = ComplementBasedGenerator(regex)
