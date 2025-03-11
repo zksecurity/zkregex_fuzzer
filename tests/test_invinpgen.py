@@ -15,13 +15,12 @@ def test_mutation_based_generator():
     invalid_inputs = generator.generate_many(10, 20)
 
     for input in invalid_inputs:
-        assert not check_if_string_is_valid(
-            regex, input
-        ), f"Expected {input} to be invalid"
+        assert not check_if_string_is_valid(regex, input), (
+            f"Expected {input} to be invalid"
+        )
 
 
 def test_complement_based_generator():
-
     regexes = [
         r"\($",
         r"(A|4|V|p)+",
@@ -35,9 +34,9 @@ def test_complement_based_generator():
         invalid_inputs = generator.generate_many(10, 20)
 
         for input in invalid_inputs:
-            assert not check_if_string_is_valid(
-                regex, input
-            ), f"Expected {input} to be invalid"
+            assert not check_if_string_is_valid(regex, input), (
+                f"Expected {input} to be invalid"
+            )
 
 
 def test_nfa_invalid_generator():
@@ -48,6 +47,6 @@ def test_nfa_invalid_generator():
         invalid_inputs = generator.generate_many(10, 20)
 
         for input in invalid_inputs:
-            assert not check_if_string_is_valid(
-                regex, input
-            ), f"Expected {input} to be invalid"
+            assert not check_if_string_is_valid(regex, input), (
+                f"Expected {input} to be invalid"
+            )
