@@ -18,7 +18,8 @@ class Configuration:
     invalid_input_generator: str
     regex_num: int
     inputs_num: int
-    grammar_max_depth: int
+    grammar_max_non_terminals: int
+    grammar_custom_grammar: str | None
     seed: str
     num_process: int
     zk_regex_version: str | None
@@ -130,7 +131,8 @@ Valid input generator: {configuration.valid_input_generator}
 Invalid input generator: {configuration.valid_input_generator}
 Regex num: {configuration.regex_num}
 Inputs num: {configuration.inputs_num}
-Grammar max depth: {configuration.grammar_max_depth}
+Grammar max non-terminals: {configuration.grammar_max_non_terminals}
+Grammar custom grammar: {configuration.grammar_custom_grammar}
 Seed: {configuration.seed}
 Num process: {configuration.num_process}
 zk-regex: {configuration.zk_regex_version}
@@ -209,7 +211,8 @@ def print_fuzzing_configuration(configuration: Configuration):
             f"🔄 Invalid input generator: {configuration.invalid_input_generator}",
             f"🔢 Regex num: {configuration.regex_num}",
             f"📥 Inputs num: {configuration.inputs_num}",
-            f"🔍 Max depth: {configuration.grammar_max_depth}",
+            f"🔍 Max non-terminals: {configuration.grammar_max_non_terminals}",
+            f"🔍 Custom grammar: {configuration.grammar_custom_grammar}",
             f"🌱 Seed: {configuration.seed}",
             f"🔄 Num process: {configuration.num_process}",
             f"🔍 Logging file: {os.path.relpath(configuration.logging_file, os.getcwd()) if configuration.logging_file else 'None'}",

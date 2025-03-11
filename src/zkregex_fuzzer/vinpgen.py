@@ -122,7 +122,11 @@ class RstrGenerator(ValidInputGenerator):
         super().__init__(regex, kwargs)
 
     def generate_unsafe(self) -> Optional[str]:
-        return rstr.xeger(self.regex)
+        try:
+            return rstr.xeger(self.regex)
+        except Exception as e:
+            logger.warning(f"Error generating valid input with rstr: {e}")
+            return None
 
 
 class ExrexGenerator(ValidInputGenerator):
@@ -134,7 +138,11 @@ class ExrexGenerator(ValidInputGenerator):
         super().__init__(regex, kwargs)
 
     def generate_unsafe(self) -> Optional[str]:
-        return exrex.getone(self.regex)
+        try:
+            return exrex.getone(self.regex)
+        except Exception as e:
+            logger.warning(f"Error generating valid input with exrex: {e}")
+            return None
 
 
 class DFAWalkerGenerator(ValidInputGenerator):

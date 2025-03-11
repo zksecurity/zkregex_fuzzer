@@ -9,7 +9,7 @@ import string
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 
 from zkregex_fuzzer.dfa import wrapped_has_one_accepting_state_regex
-
+from zkregex_fuzzer.logger import logger
 
 def is_valid_regex(regex: str) -> bool:
     """
@@ -102,7 +102,11 @@ def check_zkregex_rules_basic(regex: str) -> tuple[bool, bool]:
         return False, True  # we return True as we haven't performed the DFA check
 
     # 3) Check that the regex has exactly one accepting state
-    if not wrapped_has_one_accepting_state_regex(regex):
+    try:
+        if not wrapped_has_one_accepting_state_regex(regex):
+            return False, False
+    except Exception as e:
+        logger.warning(f"Error checking if regex has exactly one accepting state: {e}")
         return False, False
 
     return True, True
@@ -121,18 +125,24 @@ def check_if_string_is_valid(regex: str, string: str) -> bool:
 def grammar_fuzzer(
     grammar: Grammar,
     start_symbol: str,
-    max_nonterminals: int = 10,
+    max_nonterminals: int = 25,
     max_expansion_trials: int = 100,
 ) -> str:
     """
     Fuzz using a grammar.
     """
-    return simple_grammar_fuzzer(
-        grammar,
-        start_symbol=start_symbol,
-        max_nonterminals=max_nonterminals,
-        max_expansion_trials=max_expansion_trials,
-    )
+    max_tries = 5
+    while max_tries > 0:
+        try:
+            return simple_grammar_fuzzer(
+                grammar,
+                start_symbol=start_symbol,
+                max_nonterminals=max_nonterminals,
+                max_expansion_trials=max_expansion_trials,
+            )
+        except Exception:
+            max_tries -= 1
+    raise Exception("Failed to generate a valid regex")
 
 
 def get_random_filename():

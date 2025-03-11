@@ -79,7 +79,7 @@ class GrammarRegexGenerator(RegexGenerator):
         self,
         grammar: Grammar,
         start_symbol: str,
-        max_nonterminals: int = 10,
+        max_nonterminals: int = 25,
         max_expansion_trials: int = 100,
     ):
         self.grammar = grammar

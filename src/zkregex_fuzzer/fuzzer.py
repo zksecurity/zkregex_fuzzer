@@ -3,6 +3,9 @@ Implements the logic for generating regexes using The Fuzzing Book's GrammarFuzz
 """
 
 import concurrent.futures
+import importlib
+import importlib.util
+import os
 from concurrent.futures import ProcessPoolExecutor
 
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
@@ -41,9 +44,33 @@ def fuzz_with_grammar(
     Fuzz test with grammar.
     """
     target_runner = TARGETS[target_implementation]
-    grammar = GRAMMARS[target_grammar]
 
-    regex_generator = GrammarRegexGenerator(grammar, "<start>")
+    if target_grammar == "basic":
+        grammar = GRAMMARS[target_grammar]
+    elif target_grammar.endswith(".py"):
+        try:
+            # Get absolute path
+            if not os.path.isabs(target_grammar):
+                # Assume relative to current working directory
+                target_grammar = os.path.abspath(target_grammar)
+            if not os.path.exists(target_grammar):
+                raise ValueError(f"Grammar file not found: {target_grammar}")
+            # Load the module from file path
+            spec = importlib.util.spec_from_file_location("grammar_module", target_grammar)
+            if spec is None:
+                raise ValueError(f"Failed to create spec for grammar: {target_grammar}")
+            grammar_module = importlib.util.module_from_spec(spec)
+            if spec.loader is None:
+                raise ValueError(f"Failed to create loader for grammar: {target_grammar}")
+            spec.loader.exec_module(grammar_module)
+            
+            grammar = grammar_module.grammar
+        except ImportError as e:
+            raise ValueError(f"Failed to import grammar: {e}")
+    else:
+        raise ValueError(f"Invalid grammar: {target_grammar}")
+
+    regex_generator = GrammarRegexGenerator(grammar, "<start>", max_nonterminals=max_depth)
     regexes = regex_generator.generate_many(regex_num)
     logger.info(f"Generated {len(regexes)} regexes.")
 

@@ -96,10 +96,16 @@ def fuzz_parser():
         help="The regex to fuzz when passing --fuzzer single.",
     )
     parser.add_argument(
-        "--grammar-max-depth",
+        "--grammar-max-non-terminals",
         type=int,
-        default=5,
-        help="Maximum depth of recursion in the grammar (default: 5).",
+        default=30,
+        help="Maximum number of non-terminals in the grammar (default: 25).",
+    )
+    parser.add_argument(
+        "--grammar-custom-grammar",
+        type=str,
+        default="basic",
+        help="The custom grammar to use for the fuzzer. If a path ended in .py is passed, it will be used as a custom grammar file. Otherwise, the grammar will be generated using the grammar.py file in the zkregex_fuzzer package (default: basic).",
     )
     parser.add_argument(
         "--max-input-size",
@@ -244,7 +250,8 @@ def do_fuzz(args):
         invalid_input_generator=args.invalid_input_generator,
         regex_num=args.regex_num,
         inputs_num=args.inputs_num,
-        grammar_max_depth=args.grammar_max_depth,
+        grammar_max_non_terminals=args.grammar_max_non_terminals,
+        grammar_custom_grammar=args.grammar_custom_grammar,
         seed=args.seed,
         zk_regex_version=zk_regex_version,
         circom_version=circom_version,
@@ -294,12 +301,12 @@ def do_fuzz(args):
 
     if args.fuzzer == "grammar":
         fuzz_with_grammar(
-            target_grammar="basic",
+            target_grammar=args.grammar_custom_grammar,
             target_implementation=args.target,
             oracle_params=oracle_params,
             regex_num=args.regex_num,
             inputs_num=args.inputs_num,
-            max_depth=args.grammar_max_depth,
+            max_depth=args.grammar_max_non_terminals,
             kwargs=kwargs,
         )
     elif args.fuzzer == "database":
