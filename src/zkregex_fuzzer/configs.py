@@ -3,6 +3,8 @@ from zkregex_fuzzer.invinpgen import (
     ComplementBasedGenerator,
     MutationBasedGenerator,
     NFAInvalidGenerator,
+    MixedGenerator as MixedInvalidGenerator,
+    PredefinedGenerator as PredefinedInvalidGenerator,
 )
 from zkregex_fuzzer.regexgen import (
     DatabaseRegexGenerator,
@@ -44,6 +46,8 @@ INVALID_INPUT_GENERATORS = {
     "mutation": MutationBasedGenerator,
     "complement": ComplementBasedGenerator,
     "nfa": NFAInvalidGenerator,
+    "mixed": MixedInvalidGenerator,
+    "predefined": PredefinedInvalidGenerator,
 }
 
 GENERATORS = {

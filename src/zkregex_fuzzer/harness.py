@@ -56,6 +56,7 @@ def _return_harness_result(
             "regex": result.regex,
             "inputs": result.failed_inputs,
             "status": result.status.name,
+            "oracle": result.oracle,
         }
 
         if runner:

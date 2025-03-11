@@ -31,7 +31,7 @@ from zkregex_fuzzer.utils import pretty_regex
 def fuzz_with_grammar(
     target_grammar: str,
     target_implementation: str,
-    oracle_params: tuple[bool, str],
+    oracle_params: list[tuple[bool, str]],
     regex_num: int,
     inputs_num: int,
     max_depth: int,
@@ -52,7 +52,7 @@ def fuzz_with_grammar(
 
 def fuzz_with_database(
     target_implementation: str,
-    oracle_params: tuple[bool, str],
+    oracle_params: list[tuple[bool, str]],
     regex_num: int,
     inputs_num: int,
     kwargs: dict,
@@ -73,7 +73,7 @@ def fuzz_with_single_regex(
     regex: str,
     inputs_num: int,
     target_runner: type[Runner],
-    oracle_params: tuple[bool, str],
+    oracle_params: list[tuple[bool, str]],
     kwargs: dict,
 ):
     fuzz_with_regexes([regex], inputs_num, target_runner, oracle_params, kwargs)
@@ -81,7 +81,7 @@ def fuzz_with_single_regex(
 
 def fuzz_with_dfa(
     target_implementation: str,
-    oracle_params: tuple[bool, str],
+    oracle_params: list[tuple[bool, str]],
     regex_num: int,
     inputs_num: int,
     kwargs: dict,
@@ -104,8 +104,8 @@ def _process_regex_inputs(params):
     (
         regex,
         target_runner,
-        oracle,
-        oracle_generator,
+        oracles,
+        oracle_generators,
         inputs_num,
         max_input_size,
         kwargs,
@@ -113,8 +113,8 @@ def _process_regex_inputs(params):
     return harness_runtime(
         regex,
         target_runner,
-        oracle,
-        oracle_generator,
+        oracles,
+        oracle_generators,
         inputs_num,
         max_input_size,
         kwargs,
@@ -126,6 +126,7 @@ def bug_logging(regex, inputs, result):
         logger.info("-" * 80)
         logger.info(f"Found a bug with regex: {pretty_regex(regex)}")
         logger.info(f"Output path: {result.output_path}")
+        logger.info(f"Oracle: {result.oracle}")
         logger.info(f"Inputs: {inputs}")
         logger.info(f"Result: {result.status}")
         logger.info(f"Failed inputs: {result.failed_inputs}")
@@ -137,39 +138,49 @@ def fuzz_with_regexes(
     regexes: list[str],
     inputs_num: int,
     target_runner: type[Runner],
-    oracle_params: tuple[bool, str],
+    oracle_params: list[tuple[bool, str]],
     kwargs: dict,
 ):
     """
     Fuzz test with pre-seeded regexes.
     """
     max_input_size = kwargs.get("max_input_size", None)
-    oracle, oracle_generator = oracle_params
-    if oracle:
-        generator = VALID_INPUT_GENERATORS[oracle_generator]
-        logger.info(f"Generating {inputs_num} inputs for each regex.")
-        regexes_inputs = []
-        for regex in regexes:
-            try:
-                regex_inputs = generator(regex, kwargs).generate_many(
-                    inputs_num, max_input_size
-                )
-            except ValueError as e:
-                logger.warning(e)
-                regex_inputs = []
-            regexes_inputs.append(regex_inputs)
-    else:
-        generator = INVALID_INPUT_GENERATORS[oracle_generator]
-        regexes_inputs = []
-        for regex in regexes:
-            try:
-                regex_inputs = generator(regex).generate_many(
-                    inputs_num, max_input_size
-                )
-            except ValueError as e:
-                logger.warning(e)
-                regex_inputs = []
-            regexes_inputs.append(regex_inputs)
+    oracles = []
+    oracle_generators = []
+    all_regex_inputs = []
+    all_results = []
+    for oracle, oracle_generator in oracle_params:
+        if oracle:
+            generator = VALID_INPUT_GENERATORS[oracle_generator]
+            logger.info(f"Generating {inputs_num} inputs for each regex.")
+            regexes_inputs = []
+            for regex in regexes:
+                try:
+                    regex_inputs = generator(regex, kwargs).generate_many(
+                        inputs_num, max_input_size
+                    )
+                except ValueError as e:
+                    logger.warning(e)
+                    regex_inputs = []
+                regexes_inputs.append(regex_inputs)
+            oracles.append(oracle)
+            oracle_generators.append(oracle_generator)
+            all_regex_inputs.append(regexes_inputs)
+        else:
+            generator = INVALID_INPUT_GENERATORS[oracle_generator]
+            regexes_inputs = []
+            for regex in regexes:
+                try:
+                    regex_inputs = generator(regex).generate_many(
+                        inputs_num, max_input_size
+                    )
+                except ValueError as e:
+                    logger.warning(e)
+                    regex_inputs = []
+                regexes_inputs.append(regex_inputs)
+            oracles.append(oracle)
+            oracle_generators.append(oracle_generator)
+            all_regex_inputs.append(regexes_inputs)
 
     n_process = kwargs.get("process_num", 1)
 
@@ -179,8 +190,8 @@ def fuzz_with_regexes(
             (
                 regex,
                 target_runner,
-                oracle,
-                oracle_generator,
+                oracles,
+                oracle_generators,
                 inputs_num,
                 max_input_size,
                 kwargs,
@@ -211,11 +222,13 @@ def fuzz_with_regexes(
                         result = future.result()
                         results.append(result)
 
-                        # Log status after each completion
-                        logger.info(
-                            f"Finished testing regex with {len(result[1])} inputs: {pretty_regex(regex)} ..."
-                        )
-                        bug_logging(regex, result[1], result[2])
+                        for inputs, oracle_result in zip(result[1], result[2]):
+                            oracle_str = "valid" if oracle_result.oracle else "invalid"
+                            # Log status after each completion
+                            logger.info(
+                                f"Finished testing regex with {len(inputs)} inputs and oracle {oracle_str}: {pretty_regex(regex)} ({oracle_result.status})..."
+                            )
+                            bug_logging(regex, inputs, oracle_result)
 
                         # Update progress bar
                         pbar.update(1)
@@ -231,30 +244,34 @@ def fuzz_with_regexes(
             result = harness_runtime(
                 regex,
                 target_runner,
-                oracle,
-                oracle_generator,
+                oracles,
+                oracle_generators,
                 inputs_num,
                 max_input_size,
                 kwargs,
             )
-            logger.info(
-                f"Finished testing regex with {len(result[1])} inputs: {pretty_regex(regex)} ..."
-            )
+            for inputs, oracle_result in zip(result[1], result[2]):
+                oracle_str = "valid" if oracle_result.oracle else "invalid"
+                logger.info(
+                    f"Finished testing regex with {len(inputs)} inputs and oracle {oracle_str}: {pretty_regex(regex)} ({oracle_result.status})..."
+                )
+                bug_logging(regex, inputs, oracle_result)
             results.append(result)
-            bug_logging(regex, result[1], result[2])
 
     stats = Stats(results)
     print_stats(stats)
 
 
 def harness_runtime(
-    regex, target_runner, oracle, oracle_generator, inputs_num, max_input_size, kwargs
-) -> tuple[str, list[str], HarnessResult]:
+    regex, target_runner, oracles, oracle_generators, inputs_num, max_input_size, kwargs
+) -> tuple[str, list[list[str]], list[HarnessResult]]:
     """
     Harness for running regexes.
 
     NOTE: This function is called by the Parallel library, so it runs in a separate process.
     I.e., no shared state between processes.
+
+    TODO: This is slightly inefficient as we are compiling the regexes multiple times.
     """
 
     # We should use the PythonReRunner to check the validity of the regexes and the inputs.
@@ -263,17 +280,23 @@ def harness_runtime(
     primary_runner = PythonReRunner
     if kwargs.get("process_num", 1) > 1:
         set_logging_enabled(False)
-    if oracle:
-        generator = VALID_INPUT_GENERATORS[oracle_generator]
-    else:
-        generator = INVALID_INPUT_GENERATORS[oracle_generator]
-
-    regex_inputs = []
-    try:
-        regex_inputs = generator(regex, kwargs).generate_many(
-            inputs_num, max_input_size
-        )
-    except ValueError as e:
-        logger.warning(e)
-    result = harness(regex, primary_runner, target_runner, regex_inputs, oracle, kwargs)
-    return regex, regex_inputs, result
+    all_regex_inputs = []
+    all_results = []
+    for oracle, oracle_generator in zip(oracles, oracle_generators):
+        if oracle:
+            generator = VALID_INPUT_GENERATORS[oracle_generator]
+        else:
+            generator = INVALID_INPUT_GENERATORS[oracle_generator]
+        regex_inputs = []
+        try:
+            regex_inputs = generator(regex, kwargs).generate_many(
+                inputs_num, max_input_size
+            )
+        except ValueError as e:
+            logger.warning(e)
+        result = harness(regex, primary_runner, target_runner, regex_inputs, oracle, kwargs)
+        all_regex_inputs.append(regex_inputs)
+        all_results.append(result)
+        if result.status == HarnessStatus.COMPILE_ERROR:
+            break
+    return regex, all_regex_inputs, all_results

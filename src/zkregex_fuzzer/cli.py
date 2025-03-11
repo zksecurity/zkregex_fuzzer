@@ -49,7 +49,7 @@ def fuzz_parser():
     )
     parser.add_argument(
         "--oracle",
-        choices=["valid", "invalid"],
+        choices=["valid", "invalid", "combined"],
         help="Wherether the generated inputs should be valid or invalid wrt the regex.",
     )
     parser.add_argument(
@@ -175,10 +175,6 @@ def reproduce_parser():
 
 
 def do_fuzz(args):
-    if args.oracle == "valid" and not args.valid_input_generator:
-        print("Valid input generator is required for valid oracle.")
-        exit(1)
-
     if args.valid_input_generator == "predefined" and not args.predefined_inputs:
         print("Predefined inputs are required for predefined valid input generator.")
         exit(1)
@@ -276,12 +272,17 @@ def do_fuzz(args):
         if not args.valid_input_generator:
             print("Valid input generator is required for valid oracle.")
             exit(1)
-        oracle_params = (True, args.valid_input_generator)
+        oracle_params = [(True, args.valid_input_generator)]
     elif args.oracle == "invalid":
         if not args.invalid_input_generator:
             print("Invalid input generator is required for invalid oracle.")
             exit(1)
-        oracle_params = (False, args.invalid_input_generator)
+        oracle_params = [(False, args.invalid_input_generator)]
+    elif args.oracle == "combined":
+        if not args.valid_input_generator or not args.invalid_input_generator:
+            print("Valid and invalid input generators are required for combined oracle.")
+            exit(1)
+        oracle_params = [(True, args.valid_input_generator), (False, args.invalid_input_generator)]
     else:
         print("Oracle is required.")
         exit(1)
@@ -320,7 +321,7 @@ def do_fuzz(args):
             regex=args.regex,
             inputs_num=args.inputs_num,
             target_runner=TARGETS[args.target],
-            oracle_params=(args.oracle == "valid", args.valid_input_generator),
+            oracle_params=oracle_params,
             kwargs=kwargs,
         )
 

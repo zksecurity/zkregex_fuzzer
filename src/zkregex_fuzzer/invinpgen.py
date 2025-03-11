@@ -4,7 +4,7 @@ Invalid Input Generator.
 
 import random
 import re
-from typing import List
+from typing import List, Optional
 
 import exrex
 
@@ -94,7 +94,7 @@ class MutationBasedGenerator(InvalidInputGenerator):
                 if random.random() < self._mutation_probability:
                     invalid_input[i] = chr(random.randint(0, 255))
                     if (
-                        not re.compile(valid_input).match("".join(invalid_input))
+                        not re.compile(self.regex ).match("".join(invalid_input))
                         and random.random() < self._early_end_probability
                     ):
                         break
@@ -115,7 +115,7 @@ class MutationBasedGenerator(InvalidInputGenerator):
 
         return invalid_input
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         """
         Generate an invalid input by mutating the regex.
         """
@@ -284,15 +284,25 @@ class ComplementBasedGenerator(InvalidInputGenerator):
             self._mutate_literal,
             self._negate_or_capture,
         ]
+        max_mutations = 10
         while True:
             mutation = random.choice(mutations)
             regex = mutation(regex)
             if random.random() > self._mutate_multiple_times_probability:
+                try:
+                    re.compile(regex)
+                    invalid_input = exrex.getone(regex)
+                    if invalid_input:
+                        break
+                except re.error:
+                    pass
+            max_mutations -= 1
+            if max_mutations <= 0:
                 break
 
         return regex
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         """
         Generate an invalid input by complementing the regex.
         """
@@ -319,7 +329,7 @@ class NFAInvalidGenerator(InvalidInputGenerator):
         self._early_end_probability = 0.6
         self._max_cycle = 100
 
-    def generate_unsafe(self) -> str:
+    def generate_unsafe(self) -> Optional[str]:
         nfa = regex_to_nfa(self.regex)
         initial_state = nfa.initial_state
         final_states = nfa.final_states
@@ -362,3 +372,39 @@ class NFAInvalidGenerator(InvalidInputGenerator):
                 break
 
         return invalid_input
+
+class MixedGenerator(InvalidInputGenerator):
+    """
+    Generate invalid inputs for a regex using a mixed approach.
+    """
+
+    def __init__(self, regex: str, kwargs: dict = {}):
+        super().__init__(regex, kwargs)
+        self._max_attempts = 50
+        self.generators = [
+            # TODO: Add grammar based generator
+            # Currently, the grammar based generator is not mature enough
+            # GrammarBasedGenerator(regex),
+            MutationBasedGenerator(regex, kwargs),
+            ComplementBasedGenerator(regex, kwargs),
+            NFAInvalidGenerator(regex, kwargs),
+        ]
+
+    def generate_unsafe(self) -> Optional[str]:
+        return random.choice(self.generators).generate_unsafe()
+
+
+class PredefinedGenerator(InvalidInputGenerator):
+    """
+    Generate invalid inputs for a regex using a predefined list of inputs.
+    """
+
+    def __init__(self, regex: str, kwargs: dict = {}):
+        super().__init__(regex, kwargs)
+        self.predefined_inputs = iter(kwargs.get("predefined_inputs", []))
+
+    def generate_unsafe(self) -> Optional[str]:
+        try:
+            return next(self.predefined_inputs)
+        except StopIteration:
+            return None

@@ -42,7 +42,10 @@ def simulate_harness(directory: Path):
     kwargs = metadata["config"]
 
     target_runner = TARGETS[metadata["config"]["target"]]
+    # TODO: simplify this, but we should fix past bug reports first
     oracle = True if metadata["config"]["oracle"] == "valid" else False
+    if metadata["config"]["oracle"] == "combined":
+        oracle = metadata["oracle"]
 
     # Create a nicely formatted heading
     print("\n" + "═" * 80)
