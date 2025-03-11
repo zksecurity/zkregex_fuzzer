@@ -280,9 +280,14 @@ def do_fuzz(args):
         oracle_params = [(False, args.invalid_input_generator)]
     elif args.oracle == "combined":
         if not args.valid_input_generator or not args.invalid_input_generator:
-            print("Valid and invalid input generators are required for combined oracle.")
+            print(
+                "Valid and invalid input generators are required for combined oracle."
+            )
             exit(1)
-        oracle_params = [(True, args.valid_input_generator), (False, args.invalid_input_generator)]
+        oracle_params = [
+            (True, args.valid_input_generator),
+            (False, args.invalid_input_generator),
+        ]
     else:
         print("Oracle is required.")
         exit(1)

@@ -42,31 +42,76 @@ class Stats:
     def get_stats(self):
         return {
             "regexes": len(self.regexes),
-            "total_inputs": sum([len(inputs) for oracle_inputs in self.inputs for inputs in oracle_inputs]),
-            "avg_inputs": sum([len(inputs) for oracle_inputs in self.inputs for inputs in oracle_inputs])
+            "total_inputs": sum(
+                [
+                    len(inputs)
+                    for oracle_inputs in self.inputs
+                    for inputs in oracle_inputs
+                ]
+            ),
+            "avg_inputs": sum(
+                [
+                    len(inputs)
+                    for oracle_inputs in self.inputs
+                    for inputs in oracle_inputs
+                ]
+            )
             / len(self.regexes),
-            "min_inputs": min([len(inputs) for oracle_inputs in self.inputs for inputs in oracle_inputs]),
-            "max_inputs": max([len(inputs) for oracle_inputs in self.inputs for inputs in oracle_inputs]),
+            "min_inputs": min(
+                [
+                    len(inputs)
+                    for oracle_inputs in self.inputs
+                    for inputs in oracle_inputs
+                ]
+            ),
+            "max_inputs": max(
+                [
+                    len(inputs)
+                    for oracle_inputs in self.inputs
+                    for inputs in oracle_inputs
+                ]
+            ),
             "total_errors": sum(
-                [result.status != HarnessStatus.SUCCESS for oracle_results in self.results for result in oracle_results]
+                [
+                    result.status != HarnessStatus.SUCCESS
+                    for oracle_results in self.results
+                    for result in oracle_results
+                ]
             ),
             "total_valid": sum(
-                [result.status == HarnessStatus.SUCCESS for oracle_results in self.results for result in oracle_results]
+                [
+                    result.status == HarnessStatus.SUCCESS
+                    for oracle_results in self.results
+                    for result in oracle_results
+                ]
             ),
             "total_oracle_violations": sum(
-                [result.status == HarnessStatus.FAILED for oracle_results in self.results for result in oracle_results]
+                [
+                    result.status == HarnessStatus.FAILED
+                    for oracle_results in self.results
+                    for result in oracle_results
+                ]
             ),
             "total_compile_errors": sum(
                 [
                     result.status == HarnessStatus.COMPILE_ERROR
-                    for oracle_results in self.results for result in oracle_results
+                    for oracle_results in self.results
+                    for result in oracle_results
                 ]
             ),
             "total_run_errors": sum(
-                [result.status == HarnessStatus.RUN_ERROR for oracle_results in self.results for result in oracle_results]
+                [
+                    result.status == HarnessStatus.RUN_ERROR
+                    for oracle_results in self.results
+                    for result in oracle_results
+                ]
             ),
             "total_invalid_seed": sum(
-                [result.status == HarnessStatus.INVALID_SEED for oracle_results in self.results for result in oracle_results]
+                [
+                    result.status == HarnessStatus.INVALID_SEED
+                    for oracle_results in self.results
+                    for result in oracle_results
+                ]
             ),
         }
 

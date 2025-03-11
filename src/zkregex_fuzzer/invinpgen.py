@@ -94,7 +94,7 @@ class MutationBasedGenerator(InvalidInputGenerator):
                 if random.random() < self._mutation_probability:
                     invalid_input[i] = chr(random.randint(0, 255))
                     if (
-                        not re.compile(self.regex ).match("".join(invalid_input))
+                        not re.compile(self.regex).match("".join(invalid_input))
                         and random.random() < self._early_end_probability
                     ):
                         break
@@ -372,6 +372,7 @@ class NFAInvalidGenerator(InvalidInputGenerator):
                 break
 
         return invalid_input
+
 
 class MixedGenerator(InvalidInputGenerator):
     """

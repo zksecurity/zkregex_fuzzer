@@ -148,7 +148,6 @@ def fuzz_with_regexes(
     oracles = []
     oracle_generators = []
     all_regex_inputs = []
-    all_results = []
     for oracle, oracle_generator in oracle_params:
         if oracle:
             generator = VALID_INPUT_GENERATORS[oracle_generator]
@@ -294,7 +293,9 @@ def harness_runtime(
             )
         except ValueError as e:
             logger.warning(e)
-        result = harness(regex, primary_runner, target_runner, regex_inputs, oracle, kwargs)
+        result = harness(
+            regex, primary_runner, target_runner, regex_inputs, oracle, kwargs
+        )
         all_regex_inputs.append(regex_inputs)
         all_results.append(result)
         if result.status == HarnessStatus.COMPILE_ERROR:

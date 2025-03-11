@@ -12,7 +12,6 @@ from zkregex_fuzzer.invinpgen import (
 )
 from zkregex_fuzzer.utils import check_if_string_is_valid
 
-
 REGEXES = [
     r"^[a-z]+[0-9]{7}$",
     r"\($",
@@ -24,12 +23,15 @@ REGEXES = [
     r"(q|H|0|n|;|J| )+",
 ]
 
+
 def test_mutation_based_generator():
     for regex in REGEXES:
         generator = MutationBasedGenerator(regex)
         invalid_inputs = generator.generate_many(10, 20)
 
-        assert len(invalid_inputs) > 0, f"Expected at least one invalid input for {regex}"
+        assert len(invalid_inputs) > 0, (
+            f"Expected at least one invalid input for {regex}"
+        )
         for input in invalid_inputs:
             assert not check_if_string_is_valid(regex, input), (
                 f"Expected {input} to be invalid"
@@ -41,7 +43,9 @@ def test_complement_based_generator():
         generator = ComplementBasedGenerator(regex)
         invalid_inputs = generator.generate_many(10, 20)
 
-        assert len(invalid_inputs) > 0, f"Expected at least one invalid input for {regex}"
+        assert len(invalid_inputs) > 0, (
+            f"Expected at least one invalid input for {regex}"
+        )
         for input in invalid_inputs:
             assert not check_if_string_is_valid(regex, input), (
                 f"Expected {input} to be invalid"
@@ -53,7 +57,9 @@ def test_nfa_invalid_generator():
         generator = NFAInvalidGenerator(regex)
         invalid_inputs = generator.generate_many(10, 20)
 
-        assert len(invalid_inputs) > 0, f"Expected at least one invalid input for {regex}"
+        assert len(invalid_inputs) > 0, (
+            f"Expected at least one invalid input for {regex}"
+        )
         for input in invalid_inputs:
             assert not check_if_string_is_valid(regex, input), (
                 f"Expected {input} to be invalid"

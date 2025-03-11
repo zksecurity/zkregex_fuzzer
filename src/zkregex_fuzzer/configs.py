@@ -3,7 +3,11 @@ from zkregex_fuzzer.invinpgen import (
     ComplementBasedGenerator,
     MutationBasedGenerator,
     NFAInvalidGenerator,
+)
+from zkregex_fuzzer.invinpgen import (
     MixedGenerator as MixedInvalidGenerator,
+)
+from zkregex_fuzzer.invinpgen import (
     PredefinedGenerator as PredefinedInvalidGenerator,
 )
 from zkregex_fuzzer.regexgen import (
