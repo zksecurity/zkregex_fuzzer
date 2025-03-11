@@ -28,7 +28,7 @@ class ValidInputGenerator(ABC):
 
     def __init__(self, regex: str, kwargs: dict):
         self.regex = regex
-        self._max_attempts = 10
+        self._max_attempts = 20
         self._generated_strings = set()
 
     def _generate(self) -> str:
@@ -64,7 +64,7 @@ class ValidInputGenerator(ABC):
         logger.debug(
             f"Generating {n} valid inputs for the regex: {self.regex} with {self._max_attempts} attempts using {self.__class__.__name__}."
         )
-        while len(valid_inputs) < n and attempts < self._max_attempts:
+        while len(valid_inputs) < n and attempts < n + self._max_attempts:
             try:
                 logger.debug(f"Generating valid input {len(valid_inputs) + 1} of {n}.")
                 generated = self._generate()

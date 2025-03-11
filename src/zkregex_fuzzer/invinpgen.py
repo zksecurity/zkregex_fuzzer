@@ -45,7 +45,7 @@ class InvalidInputGenerator(ValidInputGenerator):
         logger.debug(
             f"Generating {n} invalid inputs for the regex: {self.regex} with {self._max_attempts} attempts using {self.__class__.__name__}."
         )
-        while len(invalid_inputs) < n and attempts < self._max_attempts:
+        while len(invalid_inputs) < n and attempts < n + self._max_attempts:
             try:
                 logger.debug(
                     f"Generating invalid input {len(invalid_inputs) + 1} of {n}."
