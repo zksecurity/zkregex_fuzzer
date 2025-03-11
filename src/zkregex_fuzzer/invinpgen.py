@@ -164,7 +164,7 @@ class ComplementBasedGenerator(InvalidInputGenerator):
             return match.group(0)
 
         # match literals like (a|b|c)
-        return re.sub(r"\(([^\)]+)\)", toggle_negation, regex)
+        return re.sub(r"\(([^\(\)]+)\)", toggle_negation, regex)
 
     def _extract_parts(self, s: str) -> list[str]:
         """
@@ -274,8 +274,12 @@ class ComplementBasedGenerator(InvalidInputGenerator):
         Generate an invalid input by complementing the regex.
         """
         complement_regex = self._mutate_regex()
-        invalid_input = exrex.getone(complement_regex)
-        return invalid_input
+        try:
+            re.compile(complement_regex)
+            invalid_input = exrex.getone(complement_regex)
+            return invalid_input
+        except re.error:
+            return ""
 
 
 class NFAInvalidGenerator(InvalidInputGenerator):
