@@ -13,7 +13,7 @@ from automata.fa.dfa import DFA
 from automata.fa.gnfa import GNFA
 from automata.fa.nfa import NFA
 
-from zkregex_fuzzer.chars import ASCII_CHARS
+from zkregex_fuzzer.chars import SUPPORTED_CHARS
 
 
 def get_supported_symbols() -> set[str]:
@@ -22,7 +22,7 @@ def get_supported_symbols() -> set[str]:
     """
     # TODO make this configurable
     # Symbols should include at least all ASCII characters
-    return ASCII_CHARS
+    return SUPPORTED_CHARS
 
 
 def regex_to_nfa(regex: str) -> NFA:

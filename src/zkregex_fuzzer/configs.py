@@ -17,10 +17,10 @@ from zkregex_fuzzer.regexgen import (
 )
 from zkregex_fuzzer.runner import CircomRunner, NoirRunner, PythonReRunner
 from zkregex_fuzzer.vinpgen import (
-    DFAWalkerGenerator,
     ExrexGenerator,
     GrammarBasedGenerator,
     MixedGenerator,
+    NFAValidGenerator,
     PredefinedGenerator,
     RstrGenerator,
 )
@@ -42,7 +42,7 @@ VALID_INPUT_GENERATORS = {
     "grammar": GrammarBasedGenerator,
     "rstr": RstrGenerator,
     "exrex": ExrexGenerator,
-    "dfa": DFAWalkerGenerator,
+    "nfa": NFAValidGenerator,
     "mixed": MixedGenerator,
     "predefined": PredefinedGenerator,
 }

@@ -20,11 +20,11 @@ import random
 from abc import ABC, abstractmethod
 from typing import List
 
+import tqdm
 from fuzzingbook.Grammars import Grammar
 
 from zkregex_fuzzer.dfa import (
     generate_random_dfa,
-    regex_to_dfa,
     transform_dfa_to_regex,
 )
 from zkregex_fuzzer.logger import logger
@@ -66,8 +66,36 @@ class RegexGenerator(ABC):
         """
         Generate `num` regexes.
         """
+        max_tries = num + 10
         logger.debug(f"Generating {num} regexes.")
-        return [self.generate() for _ in range(num)]
+        regexes = []
+
+        # Create a progress bar
+        pbar = tqdm.tqdm(total=num, desc="Generating regexes", unit="regex")
+
+        # Track current progress
+        current_count = 0
+
+        while len(regexes) < num:
+            regex = self.generate()
+            if regex not in regexes:
+                regexes.append(regex)
+                # Update progress bar only when we add a new regex
+                pbar.update(1)
+                current_count += 1
+
+            max_tries -= 1
+            if max_tries <= 0:
+                logger.warning(
+                    f"Generated {len(regexes)} regexes in {max_tries} tries."
+                )
+                pbar.close()
+                return regexes
+
+        # Close the progress bar when done
+        pbar.close()
+
+        return regexes
 
 
 class GrammarRegexGenerator(RegexGenerator):

@@ -1,6 +1,7 @@
 from zkregex_fuzzer.utils import (
     check_zkregex_rules_basic,
     correct_carret_position,
+    extract_parts,
     has_lazy_quantifier,
     is_valid_regex,
 )
@@ -156,4 +157,63 @@ def test_check_zkregex_rules_basic():
     for regex, expected in test_cases:
         assert check_zkregex_rules_basic(regex) == expected, (
             f"Expected {regex} to have correct zk-regex rules: {expected}"
+        )
+
+
+def test_extract_parts():
+    """Test the extract_parts function with various valid regex patterns."""
+    test_cases = [
+        # (input_regex, expected_parts)
+        ("", []),
+        ("abc", ["abc"]),
+        ("a[bc]d", ["a", "[bc]", "d"]),
+        ("a(bc)d", ["a", "(bc)", "d"]),
+        ("a[bc](de)f", ["a", "[bc]", "(de)", "f"]),
+        (r"a\[bc\]d", ["a\\[bc\\]d"]),  # Escaped brackets
+        (r"a\(bc\)d", ["a\\(bc\\)d"]),  # Escaped parentheses
+        ("a[b]c[d]e", ["a", "[b]", "c", "[d]", "e"]),
+        ("a(b)c(d)e", ["a", "(b)", "c", "(d)", "e"]),
+        ("a(b(c)d)e", ["a", "(b(c)d)", "e"]),  # Nested parentheses
+        (
+            "a[b\\]c]d",
+            ["a", "[b\\]c]", "d"],
+        ),  # Escaped closing bracket inside character class
+        (
+            "a(b\\)c)d",
+            ["a", "(b\\)c)", "d"],
+        ),  # Escaped closing parenthesis inside group
+        ("a+b*c?d{2,3}", ["a+b*c?d{2,3}"]),  # Special regex characters
+        (
+            r"^a[b-d]+(\d{2,4})?e*$",
+            ["^a", "[b-d]", "+", "(\\d{2,4})", "?e*$"],
+        ),  # Complex regex
+        ("a\nb\tc", ["a\nb\tc"]),  # Non-printable characters
+        ("a|b(c|d)e", ["a|b", "(c|d)", "e"]),  # Alternation
+        ("a[bc]+d(ef)*", ["a", "[bc]", "+d", "(ef)", "*"]),  # Quantifiers
+        ("((a|b)c)", ["((a|b)c)"]),  # Multiple nested groups
+        ("a[[]b", ["a", "[[]", "b"]),  # Literal bracket in character class
+        ("a[(]b", ["a", "[(]", "b"]),  # Literal parenthesis in character class
+        (r"a[\]]b", ["a", "[\\]]", "b"]),  # Escaped closing bracket in character class
+        (
+            r"a[\)]b",
+            ["a", "[\\)]", "b"],
+        ),  # Escaped closing parenthesis in character class
+        (
+            r"a[\[\]]b",
+            ["a", "[\\[\\]]", "b"],
+        ),  # Multiple escaped brackets in character class
+        (
+            r"a[\(\)]b",
+            ["a", "[\\(\\)]", "b"],
+        ),  # Multiple escaped parentheses in character class
+        (r"a\]b", ["a\\]b"]),  # Escaped closing bracket
+        (r"a\)b", ["a\\)b"]),  # Escaped closing parenthesis
+        ("a[^bc]d", ["a", "[^bc]", "d"]),  # Negated character class
+        (r"a\b\d+", ["a\\b\\d+"]),  # Word boundary and digit shorthand
+    ]
+
+    for regex, expected in test_cases:
+        result = extract_parts(regex)
+        assert result == expected, (
+            f"Failed for regex '{regex}': got {result}, expected {expected}"
         )

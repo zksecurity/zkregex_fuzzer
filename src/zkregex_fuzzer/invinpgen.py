@@ -1,35 +1,76 @@
 """
 Invalid Input Generator.
+
+TODO: Add option to prepend and append invalid inputs
 """
 
 import random
 import re
+from collections import defaultdict
 from typing import List, Optional
 
 import exrex
 
+from zkregex_fuzzer.chars import SUPPORTED_CHARS
 from zkregex_fuzzer.dfa import regex_to_nfa
 from zkregex_fuzzer.logger import logger
-from zkregex_fuzzer.utils import check_if_string_is_valid, pretty_regex
-from zkregex_fuzzer.vinpgen import ValidInputGenerator
+from zkregex_fuzzer.utils import check_if_string_is_valid, extract_parts, pretty_regex
+from zkregex_fuzzer.vinpgen import (
+    MaxAttemptsExceeded,
+    MaxConsecutiveFailuresExceeded,
+    MaxStringGenerationAttemptsExceeded,
+    ValidInputGenerator,
+)
 
 
 class InvalidInputGenerator(ValidInputGenerator):
+    """
+    Generate invalid inputs for a regex.
+    """
+
+    def __init__(self, regex: str, kwargs: dict):
+        super().__init__(regex, kwargs)
+        self._string_counts = defaultdict(int)
+
     def _generate(self) -> str:
         """
         Generate an invalid input for the regex.
         """
         attempts = 0
+        consecutive_failures = 0
+
         while attempts < self._max_attempts:
             string = self.generate_unsafe() or ""
-            if string in self._generated_strings:
-                attempts += 1
+            attempts += 1
+
+            # If we've generated this string too many times, stop trying
+            if self._string_counts[string] >= self._max_repeats:
+                logger.warning(
+                    f"Generated the same string '{string}' {self._max_repeats} times, moving on"
+                )
+                raise MaxStringGenerationAttemptsExceeded(
+                    f"String '{string}' generated too many times"
+                )
+
+            # Check if we have already generated this string
+            if self._string_counts[string] > 0:
+                self._string_counts[string] += 1
                 continue
-            self._generated_strings.add(string)
+            self._string_counts[string] += 1
+
+            # For invalid inputs, we want strings that DON'T match the regex
             if not check_if_string_is_valid(self.regex, string):
                 return string
-            attempts += 1
-        raise ValueError("Failed to generate an invalid input for the regex.")
+
+            consecutive_failures += 1
+            if consecutive_failures >= self._max_consecutive_failures:
+                raise MaxConsecutiveFailuresExceeded(
+                    f"Failed to generate invalid input after {consecutive_failures} consecutive failures"
+                )
+
+        raise MaxAttemptsExceeded(
+            f"Failed to generate an invalid input for regex after {attempts} attempts"
+        )
 
     def generate_many(self, n: int, max_input_size: int) -> List[str]:
         """
@@ -42,28 +83,56 @@ class InvalidInputGenerator(ValidInputGenerator):
         logger.debug("Start generating invalid inputs.")
         invalid_inputs = []
         attempts = 0
+        consecutive_failures = 0
+        max_total_attempts = n + self._max_attempts
+
         logger.debug(
             f"Generating {n} invalid inputs for the regex: {self.regex} with {self._max_attempts} attempts using {self.__class__.__name__}."
         )
-        while len(invalid_inputs) < n and attempts < n + self._max_attempts:
+
+        while len(invalid_inputs) < n and attempts < max_total_attempts:
             try:
                 logger.debug(
                     f"Generating invalid input {len(invalid_inputs) + 1} of {n}."
                 )
                 generated = self._generate()
-                if max_input_size:
-                    if len(generated) <= max_input_size:
-                        invalid_inputs.append(generated)
-                else:
-                    invalid_inputs.append(generated)
-            except ValueError:
-                pass
+
+                # Check size constraint
+                if max_input_size and len(generated) > max_input_size:
+                    logger.debug(
+                        f"Generated string exceeds max size: {len(generated)} > {max_input_size}"
+                    )
+                    continue
+
+                invalid_inputs.append(generated)
+                consecutive_failures = 0  # Reset on success
+
+            except (MaxConsecutiveFailuresExceeded, MaxAttemptsExceeded) as e:
+                logger.debug(f"Generation attempt failed: {str(e)}")
+                consecutive_failures += 1
+
+                # Quit if we've had too many consecutive failures
+                if consecutive_failures >= self._max_consecutive_failures:
+                    logger.warning(
+                        f"Stopping after {consecutive_failures} consecutive failures"
+                    )
+                    break
+            except MaxStringGenerationAttemptsExceeded as e:
+                logger.debug(f"Generation attempt failed (max string): {str(e)}")
+                # Quit if we've had too many consecutive failures
+                logger.warning(
+                    f"Stopping after generating {len(invalid_inputs)} invalid inputs due to same string generation attempts"
+                )
+                break
+
             attempts += 1
+
         if len(invalid_inputs) == 0:
             raise ValueError(
-                f"Failed to generate any invalid input for the regex: {pretty_regex(self.regex)}"
+                f"Failed to generate any invalid input for regex: {pretty_regex(self.regex)}"
             )
-        logger.debug("Finished generating invalid inputs.")
+
+        logger.debug(f"Generated {len(invalid_inputs)} invalid inputs")
         return invalid_inputs
 
 
@@ -75,11 +144,11 @@ class MutationBasedGenerator(InvalidInputGenerator):
 
     def __init__(self, regex: str, kwargs: dict = {}):
         super().__init__(regex, kwargs)
-        self._mutation_attempts = 100
-        self._mutation_probability = 0.2
-        self._early_end_probability = 0.75
-        self._prepend_probability = 0.15
-        self._append_probability = 0.15
+        self._mutation_attempts = 50
+        self._early_end_probability = 0.5
+        # some regexes are pretty hard for the random mutator so
+        # we set the limit to 20
+        self._max_consecutive_failures = 20
 
     def _mutate_input(self, valid_input: str) -> str:
         """
@@ -91,27 +160,20 @@ class MutationBasedGenerator(InvalidInputGenerator):
         for _ in range(self._mutation_attempts):
             # randomly mutate characters at random positions
             for i in range(len(invalid_input)):
-                if random.random() < self._mutation_probability:
-                    invalid_input[i] = chr(random.randint(0, 255))
+                # We want to mutate more often for shorter strings
+                should_mutate = random.random() < (1 / len(invalid_input)) * 2
+                if should_mutate:
+                    # Note that we can still mutate to a valid character
+                    invalid_input[i] = random.choice(
+                        list(SUPPORTED_CHARS.difference({invalid_input[i]}))
+                    )
                     if (
-                        not re.compile(self.regex).match("".join(invalid_input))
+                        not check_if_string_is_valid(self.regex, "".join(invalid_input))
                         and random.random() < self._early_end_probability
                     ):
                         break
 
         invalid_input = "".join(invalid_input)
-
-        # randomly add characters at beginning
-        if random.random() < self._prepend_probability:
-            invalid_input = (
-                chr(random.randint(0, 255)) * random.randint(1, 10) + invalid_input
-            )
-
-        # randomly add characters at end
-        if random.random() < self._append_probability:
-            invalid_input = invalid_input + chr(
-                random.randint(0, 255)
-            ) * random.randint(1, 10)
 
         return invalid_input
 
@@ -138,109 +200,95 @@ class ComplementBasedGenerator(InvalidInputGenerator):
 
     def __init__(self, regex: str, kwargs: dict = {}):
         super().__init__(regex, kwargs)
-        self._mutate_probability = 0.2
         self._mutate_multiple_times_probability = 0.2
 
     def _negate_character_class(self, regex: str) -> str:
         """
         Negate the character class.
+
+        We find all character classes and we randomly select one or more of them
+        and we toggle the negation of the character class.
+        eg. [a-z] -> [^a-z] and [^a-z] -> [a-z]
         """
+        # Extract all parts
+        all_parts = extract_parts(regex)
 
-        def toggle_negation(match: re.Match) -> str:
-            char_class = match.group(1)
-            if random.random() < self._mutate_probability:
-                if char_class.startswith("^"):  # Already negated, remove '^'
-                    return f"[{char_class[1:]}]"
-                else:  # Not negated, add '^'
-                    return f"[^{char_class}]"
+        positions = []
+        # We need a double iteration to first select and the mutate
+        for i, part in enumerate(all_parts):
+            if part.startswith("[") and part.endswith("]"):
+                positions.append(i)
 
-            return f"[{char_class}]"
+        if len(positions) == 0:
+            return regex
 
-        # Match character classes like [abc], [^xyz], [0-9], etc.
-        return re.sub(r"\[([^\]]+)\]", toggle_negation, regex)
+        # We want to chose at least one but also we can select multiples (even all)
+        num_positions = random.randint(1, len(positions))
+        selected_positions = random.sample(positions, num_positions)
+
+        result = []
+        for i, part in enumerate(all_parts):
+            if i in selected_positions:
+                if part[1:2] == "^":
+                    result.append(f"[{part[2:]}]")
+                else:
+                    result.append(f"[^{part[1:]}]")
+            else:
+                result.append(part)
+
+        return "".join(result)
 
     def _negate_or_capture(self, regex: str) -> str:
         """
         Negate all literals inside or capture group.
+
+        eg. (a|b|c) -> [^abc]
         """
+        # Extract all parts
+        all_parts = extract_parts(regex)
 
-        def toggle_negation(match: re.Match) -> str:
-            if random.random() < self._mutate_probability:
-                literals = match.group(1).split("|")
-                replaced = "[^"
-                for literal in literals:
-                    replaced += literal
-
-                return replaced + "]"
-
-            return match.group(0)
-
-        # match literals like (a|b|c)
-        return re.sub(r"\(([^\(\)]+)\)", toggle_negation, regex)
-
-    def _extract_parts(self, s: str) -> list[str]:
-        """
-        Extract regex parts outside () and [].
-        """
+        # Process each part
         result = []
-        current_part = []
-        in_brackets = False
-        in_parentheses = False
-        prev_char = ""
+        for part in all_parts:
+            if part.startswith("(") and part.endswith(")") and "|" in part:
+                # This is a capture group with alternation
+                # Extract the content inside the parentheses
+                content = part[1:-1]
 
-        for char in s:
-            # Detect start of brackets
-            if char == "[" and prev_char != "\\":
-                if current_part:
-                    result.append("".join(current_part))
-                    current_part = []
-                in_brackets = True
+                # Check if it's a simple alternation of literals
+                # We're looking for patterns like "a|b|c" without nested groups
+                # We don't support escaped () here
+                if "(" not in content and ")" not in content:
+                    literals = content.split("|")
+                    # Create a negated character class
+                    negated_class = "[^"
+                    for literal in literals:
+                        negated_class += literal.strip()
+                    negated_class += "]"
+                    result.append(negated_class)
+                    continue
+            # If not transformed, keep the original part
+            result.append(part)
 
-            elif char == "]" and prev_char != "\\":
-                current_part.append(char)
-                result.append("".join(current_part))
-                current_part = []
-                in_brackets = False
-                continue
-
-            # Detect start of parentheses
-            elif char == "(" and prev_char != "\\":
-                if current_part:
-                    result.append("".join(current_part))
-                    current_part = []
-                in_parentheses = True
-
-            elif char == ")" and prev_char != "\\":
-                current_part.append(char)
-                result.append("".join(current_part))
-                current_part = []
-                in_parentheses = False
-                continue
-
-            # Capture characters inside brackets/parentheses
-            if in_brackets or in_parentheses:
-                current_part.append(char)
-            # Capture outside text
-            elif char.isprintable():
-                current_part.append(char)
-            elif current_part:
-                result.append("".join(current_part))
-                current_part = []
-
-            prev_char = char
-
-        # Add last captured part if any
-        if current_part:
-            result.append("".join(current_part))
-
-        return result
+        return "".join(result)
 
     def _mutate_literal(self, regex: str) -> str:
         """
         Mutate the literal outside () and [] at random.
         eg. abc -> a[^b]c
         """
-        parts = self._extract_parts(regex)
+        parts = extract_parts(regex)
+        # Remove the ^ and $ if they are the first and last characters in part
+        if parts[0][0] == "^":
+            if len(parts[0]) == 1:
+                parts = parts[1:]
+            else:
+                parts[0] = parts[0][1:]
+        if parts[-1][-1] == "$":
+            if len(parts[-1]) == 1:
+                parts = parts[:-1]
+            else:
+                parts[-1] = parts[-1][:-1]
         final_regex = ""
         for part in parts:
             if part.startswith("[") or part.startswith("("):
@@ -250,23 +298,32 @@ class ComplementBasedGenerator(InvalidInputGenerator):
             literals = list(part)
             for i in range(len(literals)):
                 current_char = literals[i]
-                should_mutate = random.random() < self._mutate_probability
-                # handle escape char
+                # The should_mutate is related to the length of the literal
+                # We want to mutate more often for shorter literals
+                # We also remove escape characters when computing the length
+                should_mutate = random.random() < (
+                    1 / len([literal for literal in literals if literal != "\\"])
+                )
+                # handle escape characters
                 if current_char == "\\":
                     current_char = "\\" + literals[i + 1]
                     literals[i] = (
-                        "[^" + current_char + "]" if should_mutate else current_char
+                        "[^" + literals[i + 1] + "]" if should_mutate else current_char
                     )
                     literals[i + 1] = ""
                     i += 1
-
-                elif current_char.isalnum():
+                elif current_char:
                     literals[i] = (
                         "[^" + current_char + "]" if should_mutate else current_char
                     )
 
             part = "".join(literals)
             final_regex += part
+
+        if parts[0][0] == "^":
+            final_regex = "^" + final_regex
+        if parts[-1][-1] == "$":
+            final_regex = final_regex + "$"
 
         return final_regex
 
@@ -278,16 +335,21 @@ class ComplementBasedGenerator(InvalidInputGenerator):
 
         # In a very rare case we could mutate the regex multiple times
         # and produce a valid regex
-
         mutations = [
             self._negate_character_class,
-            self._mutate_literal,
             self._negate_or_capture,
+            self._mutate_literal,
         ]
         max_mutations = 10
         while True:
             mutation = random.choice(mutations)
             regex = mutation(regex)
+            if regex == self.regex:
+                max_mutations -= 1
+                mutations.remove(mutation)
+                if len(mutations) == 0:
+                    break
+                continue
             if random.random() > self._mutate_multiple_times_probability:
                 try:
                     re.compile(regex)
@@ -326,7 +388,9 @@ class NFAInvalidGenerator(InvalidInputGenerator):
     def __init__(self, regex: str, kwargs: dict = {}):
         super().__init__(regex, kwargs)
         self._mutation_probability = 0.2
-        self._early_end_probability = 0.6
+        self._early_end_probability = 0.2
+        # we need this option to support regexes like [a-z]*
+        self._completly_invalid_probability = 1.2
         self._max_cycle = 100
 
     def generate_unsafe(self) -> Optional[str]:
@@ -338,39 +402,112 @@ class NFAInvalidGenerator(InvalidInputGenerator):
         invalid_input = ""
 
         # Traverse transitions into final state
-        is_already_invalid = False
         current_state = initial_state
         max_cycle = self._max_cycle
+        completely_invalid = (
+            True if random.random() < self._completly_invalid_probability else False
+        )
+        completely_invalid_symbols = set()
+        if completely_invalid:
+            completely_invalid_symbols = supported_symbols - {
+                valid_input
+                for transition in transitions.values()
+                for valid_input in transition.keys()
+            }
         while True:
-            next_transition = transitions[current_state]
-            # Break if next_transition is empty
-            if not next_transition:
-                break
+            next_transitions = transitions[current_state]
+            # Break if next_transitions is empty and we are in early end probability
+            if len(next_transitions) == 0:
+                if random.random() > self._early_end_probability:
+                    break
+                else:
+                    # Go to a random state that has at least one transition
+                    current_state = random.choice(
+                        [
+                            state
+                            for state in transitions.keys()
+                            if len(transitions[state]) > 0
+                        ]
+                    )
 
-            all_valid_inputs = set(next_transition.keys())
+            all_valid_inputs = set(next_transitions.keys())
             all_invalid_inputs = supported_symbols - all_valid_inputs
-            selected_next_input = random.choice(list(all_valid_inputs))
 
-            # Use invalid input with some prob., else use valid input
-            if all_invalid_inputs and random.random() < self._mutation_probability:
-                invalid_input += random.choice(list(all_invalid_inputs))
-                is_already_invalid = True
-            else:
-                invalid_input += random.choice(list(all_valid_inputs))
+            selected_valid_input = random.choice(list(all_valid_inputs))
+            selected_invalid_input = (
+                random.choice(list(all_invalid_inputs))
+                if len(all_invalid_inputs) > 0
+                else None
+            )
+
+            selected_valid_transition = False
+            # If adding valid input would keep the string valid, always add invalid input
+            # There could be the case where we don't have any invalid input to add so we need to add a valid input
+            # e.g., .
+            if completely_invalid:
+                if len(completely_invalid_symbols) == 0:
+                    break
+                selected_invalid_input = random.choice(list(completely_invalid_symbols))
+                invalid_input += selected_invalid_input
+            elif (
+                not check_if_string_is_valid(
+                    self.regex, invalid_input + selected_valid_input
+                )
+                and random.random() > self._mutation_probability
+            ) or selected_invalid_input is None:
+                invalid_input += selected_valid_input
+                selected_valid_transition = True
+            elif selected_invalid_input is not None:
+                invalid_input += selected_invalid_input
 
             # get next transition state
-            current_state = random.choice(list(next_transition[selected_next_input]))
+            if selected_valid_transition:
+                available_transitions = list(
+                    transitions[current_state][selected_valid_input]
+                )
+                current_state = (
+                    random.choice(available_transitions)
+                    if len(available_transitions) > 0
+                    else None
+                )
+            else:
+                # Just pick any valid transitions
+                available_transitions = [
+                    state
+                    for value in transitions[current_state].values()
+                    for state in value
+                ]
+                current_state = (
+                    random.choice(available_transitions)
+                    if len(available_transitions) > 0
+                    else None
+                )
 
-            # Break if current state is final state
-            if current_state in final_states:
-                if is_already_invalid and random.random() < self._early_end_probability:
+            # if current state is None we can either exit or go to a random state
+            if current_state is None and random.random() > self._early_end_probability:
+                current_state = random.choice(list(transitions.keys()))
+            elif current_state in final_states:
+                if random.random() < self._early_end_probability:
                     break
+                # there is a chance that we are in a final state and we can't transition to any other state
+                # but we want to continue the generation. In this case we will go to a random state
+                # that has at least one transition
+                if len(transitions[current_state]) == 0:
+                    current_state = random.choice(
+                        [
+                            state
+                            for state in transitions.keys()
+                            if len(transitions[state]) > 0
+                        ]
+                    )
 
             # prevent infinite transition
             max_cycle -= 1
             if max_cycle <= 0:
                 break
 
+        if len(invalid_input) == 0:
+            return None
         return invalid_input
 
 

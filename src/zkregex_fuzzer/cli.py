@@ -156,7 +156,6 @@ def fuzz_parser():
         type=str,
         help="Predefined inputs to use for the fuzzer.",
     )
-
     return parser
 
 

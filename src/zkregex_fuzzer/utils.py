@@ -11,6 +11,7 @@ from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 from zkregex_fuzzer.dfa import wrapped_has_one_accepting_state_regex
 from zkregex_fuzzer.logger import logger
 
+
 def is_valid_regex(regex: str) -> bool:
     """
     Check if a regex is valid.
@@ -117,7 +118,7 @@ def check_if_string_is_valid(regex: str, string: str) -> bool:
     Check if a string is valid for a regex.
     """
     try:
-        return re.findall(regex, string) != []
+        return len(re.findall(regex, string)) > 0
     except re.error:
         return False
 
@@ -154,3 +155,58 @@ def pretty_regex(regex: str):
     Format raw string regex to printable chars
     """
     return regex.replace("\n", r"\n").replace("\r", r"\r")
+
+
+def extract_parts(s: str) -> list[str]:
+    """
+    Extract regex parts, separating content inside brackets [] and parentheses ().
+    Handles nested parentheses by keeping them within their parent group.
+    """
+    result = []
+    current_part = []
+    in_char_class = False
+    paren_depth = 0
+    prev_char = ""
+
+    for i, char in enumerate(s):
+        if prev_char == "\\":
+            current_part.append(char)
+            prev_char = char
+            continue
+
+        if char == "[" and not in_char_class and paren_depth == 0:
+            if current_part:
+                result.append("".join(current_part))
+                current_part = []
+            in_char_class = True
+            current_part.append(char)
+
+        elif char == "]" and in_char_class and prev_char != "\\":
+            current_part.append(char)
+            in_char_class = False
+            result.append("".join(current_part))
+            current_part = []
+
+        elif char == "(" and not in_char_class:
+            if paren_depth == 0 and current_part:
+                result.append("".join(current_part))
+                current_part = []
+            paren_depth += 1
+            current_part.append(char)
+
+        elif char == ")" and not in_char_class:
+            current_part.append(char)
+            paren_depth -= 1
+            if paren_depth == 0:
+                result.append("".join(current_part))
+                current_part = []
+
+        else:
+            current_part.append(char)
+
+        prev_char = char
+
+    if current_part:
+        result.append("".join(current_part))
+
+    return [part for part in result if part]
