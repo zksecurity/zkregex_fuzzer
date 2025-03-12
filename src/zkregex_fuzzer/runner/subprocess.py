@@ -283,7 +283,12 @@ class NoirSubprocess:
         """
         Compile Noir workspace.
         """
-        cmd = ["nargo", "compile", "--silence-warnings"]
+        cmd = [
+            "nargo",
+            "compile",
+            "--silence-warnings",
+            "--skip-underconstrained-check",
+        ]
 
         logger.debug(" ".join(cmd))
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=noir_dir_path)
@@ -291,8 +296,25 @@ class NoirSubprocess:
         if result.returncode != 0:
             raise RegexCompileError(f"Error compiling with Noir: {result.stderr}")
 
+    @staticmethod
+    def _extract_output(stdout: str) -> list:
+        """
+        Extract the output from the stdout.
+        Currently, there is no known method from nargo CLI to extract
+        only public output from the witness.
+        """
+        match = re.search(r"output: \[([^\]]+)\]", stdout)
+        if match:
+            hex_values = match.group(1)
+            int_list = [
+                int(x, 16) for x in hex_values.split(", ")
+            ]  # Convert hex to int
+            return int_list
+
+        return []
+
     @classmethod
-    def witness_gen(cls, noir_dir_path: str) -> bool:
+    def witness_gen(cls, noir_dir_path: str) -> list[int]:
         """
         Generate witness with Noir.
         """
@@ -302,9 +324,9 @@ class NoirSubprocess:
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=noir_dir_path)
 
         if result.returncode != 0:
-            return False
+            return []
 
-        return True
+        return cls._extract_output(result.stdout)
 
 
 class BarretenbergSubprocess:
