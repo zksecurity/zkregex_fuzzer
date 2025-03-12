@@ -15,6 +15,21 @@ from zkregex_fuzzer.runner.subprocess import (
     ZkRegexSubprocess,
 )
 
+NOIR_MAIN_TEMPLATE = """
+fn main(input: [u8; MAX_INPUT_SIZE]) -> pub [Field; MAX_INPUT_SIZE] {
+    let matches = regex::regex_match(input);
+    let substring = regex::extract_substring::<MAX_INPUT_SIZE, MAX_INPUT_SIZE>(matches.get(0), input);
+    let mut result: [Field; MAX_INPUT_SIZE] = [0; MAX_INPUT_SIZE];
+    for i in 0..MAX_INPUT_SIZE {
+        let r = substring.get_unchecked(i);
+        result[i] = Field::from(r);
+    }
+    print("output: ");
+    println(result);
+    result
+}
+"""
+
 
 class NoirRunner(Runner):
     """
@@ -47,9 +62,7 @@ class NoirRunner(Runner):
             main_func += (
                 f"global MAX_INPUT_SIZE: u32 = {self._noir_max_input_size};\n\n"
             )
-            main_func += (
-                "fn main(input: [u8; MAX_INPUT_SIZE]) { regex::regex_match(input); }"
-            )
+            main_func += NOIR_MAIN_TEMPLATE
             f.write(main_func)
 
         return str(src_path)
@@ -65,10 +78,17 @@ class NoirRunner(Runner):
 
         # Create JSON for the regex for zk-regex
         base_json = {"parts": []}
-        # TODO: handle the following if is_public is set to True:
-        # the section containing this ^ must be non-public (is_public: false).
-        regex_parts = {"regex_def": regex, "is_public": False}
-        base_json["parts"].append(regex_parts)
+        # the section start with beginning anchor (^) must be non-public (is_public: false).
+        # else, make the section public
+        if regex.startswith("^"):
+            regex_parts = [
+                {"regex_def": regex[0], "is_public": False},
+                {"regex_def": regex[1:], "is_public": True},
+            ]
+        else:
+            regex_parts = [{"regex_def": regex, "is_public": True}]
+
+        base_json["parts"] = regex_parts
         regex_json = json.dumps(base_json)
 
         # Write the JSON to a temporary file
@@ -114,10 +134,11 @@ class NoirRunner(Runner):
 
         # Generate the witness
         logger.debug("Generating witness starts")
-        match = NoirSubprocess.witness_gen(self._path)
+        outputs = NoirSubprocess.witness_gen(self._path)
+        is_match = len(outputs) > 0
         logger.debug("Generating witness ends")
 
-        if self._run_the_prover and match:
+        if self._run_the_prover and is_match:
             # prove
             BarretenbergSubprocess.prove(self._path)
             # verify
@@ -126,7 +147,12 @@ class NoirRunner(Runner):
                     "Error running with Barretenberg: Proof verification failed"
                 )
 
-        return match, ""
+        # Convert the output to a string
+        substr_output_numeric = outputs
+        substr_output = "".join([chr(int(c)) for c in substr_output_numeric])
+        substr_output = substr_output.strip("\x00")  # remove zero padding
+
+        return is_match, substr_output
 
     def clean(self):
         # Remove all temporary files

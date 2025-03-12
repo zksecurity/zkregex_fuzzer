@@ -46,8 +46,9 @@ class CircomRunner(Runner):
         logger.debug("Compiling regex starts")
         # Create JSON for the regex for zk-regex
         base_json = {"parts": []}
-        # TODO: handle the following if is_public is set to True:
-        # the section containing this ^ must be non-public (is_public: false).
+
+        # the section start with beginning anchor (^) must be non-public (is_public: false).
+        # else, make the section public
         if regex.startswith("^"):
             regex_parts = [
                 {"regex_def": regex[0], "is_public": False},
@@ -137,7 +138,6 @@ class CircomRunner(Runner):
         # Extract from the witness the result of the match
         result = SnarkjsSubprocess.extract_witness(witness_path)
 
-        # TODO: get and convert substr output to its string representation
         substr_length = len(numeric_input)
         substr_output_numeric = result[2 : substr_length + 2]
         substr_output = "".join([chr(int(c)) for c in substr_output_numeric])

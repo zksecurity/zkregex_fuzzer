@@ -216,7 +216,7 @@ def print_fuzzing_configuration(configuration: Configuration):
             f"🌱 Seed: {configuration.seed}",
             f"🔄 Num process: {configuration.num_process}",
             f"🔍 Logging file: {os.path.relpath(configuration.logging_file, os.getcwd()) if configuration.logging_file else 'None'}",
-            f"🔍 Save options: {', '.join(configuration.save_options) if configuration.save_options else ""}",
+            f"🔍 Save options: {', '.join(configuration.save_options)}",
             f"🔍 Output path: {os.path.relpath(configuration.output_path, os.getcwd())}",
         ]
     )
