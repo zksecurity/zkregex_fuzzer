@@ -33,8 +33,10 @@ class PythonReRunner(Runner):
         try:
             match_input = self._compiled_regex.match(input)
             match_success = match_input is not None
-            str_result = python_substring(self._regex, input)
-            return (match_success, str_result)
+            if match_success:
+                str_result = python_substring(self._regex, input)
+                return (match_success, str_result)
+            return (match_success, "")
         except re.error as e:
             raise RegexRunError(f"Error matching regex: {e}")
 

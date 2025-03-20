@@ -25,9 +25,12 @@ class HarnessStatus(Enum):
     )
     COMPILE_ERROR = 2  # The secondary runner failed to compile
     RUN_ERROR = 3  # The secondary runner failed to run
-    FAILED = 4  # Found a bug
-    INPUT_GEN_TIMEOUT = 5  # The input generation timed out
-    HARNESS_TIMEOUT = 6  # The harness timed out
+    FAILED = (
+        4  # The status of the secondary runner is different than the expected status
+    )
+    SUBSTR_MISMATCH = 5  # The substr mismatch
+    INPUT_GEN_TIMEOUT = 6  # The input generation timed out
+    HARNESS_TIMEOUT = 7  # The harness timed out
 
 
 @dataclass
@@ -133,6 +136,7 @@ def harness(
         )
 
     failed_inputs = []
+    status = HarnessStatus.SUCCESS
     for input in inputs:
         primary_runner_str = None
         try:
@@ -163,12 +167,22 @@ def harness(
             )
             if secondary_runner_status != oracle:
                 failed_inputs.append(input)
+                if status == HarnessStatus.SUBSTR_MISMATCH:
+                    logger.warning(
+                        f"regex: {regex}, input: {input}, failed with failed, when there is already a failed with substr mismatch input"
+                    )
+                status = HarnessStatus.FAILED
 
             elif (
                 secondary_runner_status == oracle
                 and primary_runner_str != secondary_runner_str
             ):
                 failed_inputs.append(input)
+                if status == HarnessStatus.FAILED:
+                    logger.warning(
+                        f"regex: {regex}, input: {input}, failed with substr mismatch, when there is already a failed input"
+                    )
+                status = HarnessStatus.SUBSTR_MISMATCH
         except RegexRunError as e:
             return _return_harness_result(
                 HarnessResult(
@@ -182,7 +196,7 @@ def harness(
 
     if len(failed_inputs) > 0:
         return _return_harness_result(
-            HarnessResult(regex, inp_num, oracle, failed_inputs, HarnessStatus.FAILED),
+            HarnessResult(regex, inp_num, oracle, failed_inputs, status),
             status_to_save,
             output_path,
             secondary_runner,
@@ -190,7 +204,7 @@ def harness(
         )
 
     return _return_harness_result(
-        HarnessResult(regex, inp_num, oracle, inputs, HarnessStatus.SUCCESS),
+        HarnessResult(regex, inp_num, oracle, inputs, status),
         status_to_save,
         output_path,
         secondary_runner,

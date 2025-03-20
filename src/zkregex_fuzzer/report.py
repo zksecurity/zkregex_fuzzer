@@ -136,6 +136,14 @@ class Stats:
                     if result.status == HarnessStatus.HARNESS_TIMEOUT
                 ]
             ),
+            "total_substr_mismatch": sum(
+                [
+                    1
+                    for oracle_results in self.results
+                    for result in oracle_results
+                    if result.status == HarnessStatus.SUBSTR_MISMATCH
+                ]
+            ),
         }
 
 
@@ -194,7 +202,7 @@ def print_fuzzing_configuration(configuration: Configuration):
 """
     print(banner)
 
-    width = 80
+    width = 85
 
     # Top border
     print("\n" + "╔" + "═" * (width - 2) + "╗")
@@ -360,6 +368,7 @@ def print_stats(stats: Stats):
             ("Oracle violations", stats_dict["total_oracle_violations"]),
             ("Compilation errors", stats_dict["total_compile_errors"]),
             ("Runtime errors", stats_dict["total_run_errors"]),
+            ("Substr mismatch", stats_dict["total_substr_mismatch"]),
             ("Invalid seed errors", stats_dict["total_invalid_seed"]),
             ("Input gen timeout", stats_dict["total_input_gen_timeout"]),
             ("Harness timeout", stats_dict["total_harness_timeout"]),

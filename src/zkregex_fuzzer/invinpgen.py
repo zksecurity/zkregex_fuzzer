@@ -129,9 +129,7 @@ class InvalidInputGenerator(ValidInputGenerator):
 
         # Special check, zk-regex does not accept empty input e.g., ''
         invalid_inputs = [
-            invalid_input
-            for invalid_input in invalid_inputs
-            if invalid_input != ""
+            invalid_input for invalid_input in invalid_inputs if invalid_input != ""
         ]
 
         if len(invalid_inputs) == 0:
