@@ -5,7 +5,7 @@ Utility functions for the regex fuzzer.
 import random
 import re
 import string
-
+import warnings
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 
 from zkregex_fuzzer.dfa import wrapped_has_one_accepting_state_regex
@@ -17,7 +17,10 @@ def is_valid_regex(regex: str) -> bool:
     Check if a regex is valid.
     """
     try:
-        re.compile(regex)
+        # Just mute future warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            re.compile(regex)
         return True
     except re.error:
         return False

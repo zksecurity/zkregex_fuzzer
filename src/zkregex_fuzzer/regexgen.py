@@ -66,7 +66,7 @@ class RegexGenerator(ABC):
         """
         Generate `num` regexes.
         """
-        max_tries = num + 10
+        max_tries = num + 100
         logger.debug(f"Generating {num} regexes.")
         regexes = []
 
