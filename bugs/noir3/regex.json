@@ -1,0 +1,1 @@
+{"parts": [{"regex_def": "(\r\n|^)from:[^\r\n]+\r\n", "is_public": true}]}
