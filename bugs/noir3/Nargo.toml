@@ -1,6 +1,0 @@
-[package]
-name = "test_regex"
-type = "bin"
-authors = [""]
-
-[dependencies]
