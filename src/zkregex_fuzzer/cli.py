@@ -9,6 +9,9 @@ import uuid
 from pathlib import Path
 
 from zkregex_fuzzer.configs import (
+    DEFAULT_HARNESS_TIMEOUT,
+    DEFAULT_INPUT_GEN_TIMEOUT,
+    DEFAULT_REGEX_TIMEOUT,
     FUZZER_VERSION,
     GENERATORS,
     INVALID_INPUT_GENERATORS,
@@ -155,6 +158,25 @@ def fuzz_parser():
         nargs="*",
         type=str,
         help="Predefined inputs to use for the fuzzer.",
+    )
+    # timeout options
+    parser.add_argument(
+        "--timeout-per-regex",
+        type=int,
+        default=DEFAULT_REGEX_TIMEOUT,
+        help="Timeout for regex generation (default: 420).",
+    )
+    parser.add_argument(
+        "--input-gen-timeout",
+        type=int,
+        default=DEFAULT_INPUT_GEN_TIMEOUT,
+        help="Timeout for input generation (default: 120).",
+    )
+    parser.add_argument(
+        "--harness-timeout",
+        type=int,
+        default=DEFAULT_HARNESS_TIMEOUT,
+        help="Timeout for harness execution (default: 300).",
     )
     return parser
 

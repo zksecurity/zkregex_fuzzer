@@ -26,6 +26,8 @@ class HarnessStatus(Enum):
     COMPILE_ERROR = 2  # The secondary runner failed to compile
     RUN_ERROR = 3  # The secondary runner failed to run
     FAILED = 4  # Found a bug
+    INPUT_GEN_TIMEOUT = 5  # The input generation timed out
+    HARNESS_TIMEOUT = 6  # The harness timed out
 
 
 @dataclass

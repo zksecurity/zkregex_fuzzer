@@ -61,3 +61,8 @@ GENERATORS = {
     "dfa": DFARegexGenerator,
     "single": None,  # Just pass a regex to use
 }
+
+# Default timeouts (in seconds)
+DEFAULT_REGEX_TIMEOUT = 420  # 7 minutes for overall regex processing
+DEFAULT_INPUT_GEN_TIMEOUT = 120  # 2 minutes for input generation
+DEFAULT_HARNESS_TIMEOUT = 300  # 5 minutes for harness execution

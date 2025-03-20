@@ -9,12 +9,20 @@ import concurrent.futures
 import importlib
 import importlib.util
 import os
+import signal
+import threading
+import time
 from concurrent.futures import ProcessPoolExecutor
+from functools import wraps
 
+import psutil
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 from tqdm.auto import tqdm
 
 from zkregex_fuzzer.configs import (
+    DEFAULT_HARNESS_TIMEOUT,
+    DEFAULT_INPUT_GEN_TIMEOUT,
+    DEFAULT_REGEX_TIMEOUT,
     GRAMMARS,
     INVALID_INPUT_GENERATORS,
     TARGETS,
@@ -134,25 +142,91 @@ def fuzz_with_dfa(
     fuzz_with_regexes(regexes, inputs_num, target_runner, oracle_params, kwargs)
 
 
-# Define a proper function that can be pickled (outside of any other function)
-def _process_regex_inputs(params):
-    """Process a single regex with its inputs (for parallel processing)"""
-    (
-        regex,
-        target_runner,
-        oracle_params,
-        inputs_num,
-        max_input_size,
-        kwargs,
-    ) = params
-    return harness_runtime(
-        regex,
-        target_runner,
-        oracle_params,
-        inputs_num,
-        max_input_size,
-        kwargs,
+# Enhanced timeout decorator that kills subprocesses
+def timeout_decorator(seconds, error_message="Timeout"):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = [TimeoutError(error_message)]
+            process_created = threading.Event()
+            parent_pid = os.getpid()
+
+            def target():
+                try:
+                    result[0] = func(*args, **kwargs)
+                except Exception as e:
+                    result[0] = e
+                finally:
+                    process_created.set()  # Signal that we're done
+
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()
+
+            # Wait for the function to complete or timeout
+            thread.join(seconds)
+
+            # If the thread is still alive after the timeout
+            if thread.is_alive():
+                logger.warning(f"Timeout occurred: {error_message}")
+
+                # Find and kill all child processes
+                try:
+                    parent = psutil.Process(parent_pid)
+                    children = parent.children(recursive=True)
+
+                    for child in children:
+                        try:
+                            # Check if this is a process created by our function
+                            # This is a heuristic - we're assuming processes created
+                            # during the function execution are related to it
+                            if child.create_time() > time.time() - seconds - 1:
+                                logger.warning(
+                                    f"Killing subprocess with PID {child.pid}"
+                                )
+                                child.kill()
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            pass
+                except Exception as e:
+                    logger.error(f"Error killing subprocesses: {e}")
+
+                raise TimeoutError(error_message)
+
+            # If the function raised an exception, re-raise it
+            if isinstance(result[0], Exception):
+                raise result[0]
+
+            return result[0]
+
+        return wrapper
+
+    return decorator
+
+
+def _process_regex_inputs(param):
+    """
+    Process a single regex with its inputs.
+    This function is called by the ProcessPoolExecutor.
+    """
+    regex, target_runner, oracle_params, inputs_num, max_input_size, kwargs = param
+
+    # Get the overall timeout
+    timeout_per_regex = kwargs.get("timeout_per_regex", DEFAULT_REGEX_TIMEOUT)
+
+    # Apply a strict timeout to the entire function
+    @timeout_decorator(
+        timeout_per_regex, f"Timeout after {timeout_per_regex}s processing regex"
     )
+    def process_with_timeout():
+        return harness_runtime(
+            regex, target_runner, oracle_params, inputs_num, max_input_size, kwargs
+        )
+
+    try:
+        return process_with_timeout()
+    except TimeoutError as e:
+        logger.error(f"{e}: {pretty_regex(regex)}")
+        return regex, [], []
 
 
 def bug_logging(regex, inputs, result):
@@ -191,6 +265,15 @@ def fuzz_with_regexes(
     max_input_size = kwargs.get("max_input_size", None)
     n_process = kwargs.get("process_num", 1)
 
+    # Get timeout from kwargs or use default
+    timeout_per_regex = kwargs.get("timeout_per_regex", DEFAULT_REGEX_TIMEOUT)
+
+    # Set default timeouts for input generation and harness if not provided
+    if "input_gen_timeout" not in kwargs:
+        kwargs["input_gen_timeout"] = DEFAULT_INPUT_GEN_TIMEOUT
+    if "harness_timeout" not in kwargs:
+        kwargs["harness_timeout"] = DEFAULT_HARNESS_TIMEOUT
+
     if n_process > 1:
         # Create parameter tuples for process_map
         params = [
@@ -205,51 +288,74 @@ def fuzz_with_regexes(
             for regex in regexes
         ]
 
-        # Use concurrent.futures directly for more control
-
         # Create progress bar
         with tqdm(total=len(params), desc="Testing Regexes   ") as pbar:
             results = []
 
-            # Use ProcessPoolExecutor
+            # Use ProcessPoolExecutor with a context manager to ensure proper cleanup
             with ProcessPoolExecutor(max_workers=n_process) as executor:
-                # Submit all tasks
-                future_to_regex = {
+                # Submit all tasks at once
+                futures_to_regex = {
                     executor.submit(_process_regex_inputs, param): param[
                         0
                     ]  # regex is param[0]
                     for param in params
                 }
-                # Process results as they complete
-                for future in concurrent.futures.as_completed(future_to_regex):
-                    regex = future_to_regex[future]
+
+                # Process results as they complete with a strict timeout
+                for future in concurrent.futures.as_completed(futures_to_regex):
+                    regex = futures_to_regex[future]
                     try:
-                        result = future.result()
+                        # Add a strict timeout to get the result
+                        result = future.result(timeout=timeout_per_regex)
                         results.append(result)
-
                         _process_results(regex, result)
-
-                        # Update progress bar
-                        pbar.update(1)
+                    except concurrent.futures.TimeoutError:
+                        logger.error(
+                            f"Executor timeout after {timeout_per_regex}s processing regex: {pretty_regex(regex)}"
+                        )
+                        # Try to cancel the future
+                        future.cancel()
+                        # Add a placeholder result to maintain count
+                        results.append((regex, [], []))
                     except Exception as exc:
                         logger.error(
                             f"Error processing regex {pretty_regex(regex)}: {exc}"
                         )
+                        # Add a placeholder result to maintain count
+                        results.append((regex, [], []))
+                    finally:
+                        # Always update progress bar regardless of success/failure
                         pbar.update(1)
     else:
         results = []
         for regex in regexes:
             logger.info(f"Testing regex: {pretty_regex(regex)}")
-            result = harness_runtime(
-                regex,
-                target_runner,
-                oracle_params,
-                inputs_num,
-                max_input_size,
-                kwargs,
-            )
-            _process_results(regex, result)
-            results.append(result)
+            try:
+                # Apply a strict timeout to the entire function
+                @timeout_decorator(
+                    timeout_per_regex,
+                    f"Timeout after {timeout_per_regex}s processing regex",
+                )
+                def process_single_regex():
+                    return harness_runtime(
+                        regex,
+                        target_runner,
+                        oracle_params,
+                        inputs_num,
+                        max_input_size,
+                        kwargs,
+                    )
+
+                result = process_single_regex()
+                _process_results(regex, result)
+                results.append(result)
+            except TimeoutError as e:
+                logger.error(f"{e}: {pretty_regex(regex)}")
+                results.append((regex, [], []))
+            except Exception as exc:
+                logger.error(f"Error processing regex {pretty_regex(regex)}: {exc}")
+                results.append((regex, [], []))
 
     stats = Stats(results)
     print_stats(stats)
@@ -259,39 +365,87 @@ def harness_runtime(
     regex, target_runner, oracle_params, inputs_num, max_input_size, kwargs
 ) -> tuple[str, list[list[str]], list[HarnessResult]]:
     """
-    Harness for running regexes.
-
-    NOTE: This function is called by the Parallel library, so it runs in a separate process.
-    I.e., no shared state between processes.
-
-    TODO: This is slightly inefficient as we are compiling the regexes multiple times.
+    Harness for running regexes with separate timeouts for input generation and harness execution.
     """
+    # Get timeouts from kwargs or use defaults
+    input_gen_timeout = kwargs.get("input_gen_timeout", DEFAULT_INPUT_GEN_TIMEOUT)
+    harness_timeout = kwargs.get("harness_timeout", DEFAULT_HARNESS_TIMEOUT)
 
     # We should use the PythonReRunner to check the validity of the regexes and the inputs.
-    # If there is a bug in the PythonReRunner, we might not find it as we will think that
-    # either the regex or the input is invalid.
     primary_runner = PythonReRunner
     if kwargs.get("process_num", 1) > 1:
         set_logging_enabled(False)
+
     all_regex_inputs = []
     all_results = []
+
     for oracle, oracle_generator in oracle_params:
         if oracle:
             generator = VALID_INPUT_GENERATORS[oracle_generator]
         else:
             generator = INVALID_INPUT_GENERATORS[oracle_generator]
+
+        # Generate inputs with timeout
         regex_inputs = []
         try:
-            regex_inputs = generator(regex, kwargs).generate_many(
-                inputs_num, max_input_size
+            # Apply a strict timeout to input generation
+            @timeout_decorator(
+                input_gen_timeout,
+                f"Input generation timeout after {input_gen_timeout}s",
             )
+            def generate_inputs():
+                return generator(regex, kwargs).generate_many(
+                    inputs_num, max_input_size
+                )
+
+            regex_inputs = generate_inputs()
+        except TimeoutError as e:
+            logger.warning(f"{e} for regex: {pretty_regex(regex)}")
+            # Create a result with INPUT_GEN_TIMEOUT status
+            result = HarnessResult(
+                regex=regex,
+                inp_num=len(regex_inputs),
+                oracle=oracle,
+                status=HarnessStatus.INPUT_GEN_TIMEOUT,
+                failed_inputs=regex_inputs,
+                error_message=str(e),
+            )
+            all_regex_inputs.append([])
+            all_results.append(result)
+            continue
         except ValueError as e:
             logger.warning(e)
-        result = harness(
-            regex, primary_runner, target_runner, regex_inputs, oracle, kwargs
-        )
-        all_regex_inputs.append(regex_inputs)
-        all_results.append(result)
+
+        # Run harness with timeout
+        try:
+            # Apply a strict timeout to harness execution
+            @timeout_decorator(
+                harness_timeout, f"Harness execution timeout after {harness_timeout}s"
+            )
+            def run_harness():
+                return harness(
+                    regex, primary_runner, target_runner, regex_inputs, oracle, kwargs
+                )
+
+            result = run_harness()
+            all_regex_inputs.append(regex_inputs)
+            all_results.append(result)
+        except TimeoutError as e:
+            logger.warning(f"{e} for regex: {pretty_regex(regex)}")
+            # Create a result with HARNESS_TIMEOUT status
+            result = HarnessResult(
+                regex=regex,
+                inp_num=len(regex_inputs),
+                oracle=oracle,
+                status=HarnessStatus.HARNESS_TIMEOUT,
+                failed_inputs=regex_inputs,
+                error_message=str(e),
+            )
+            all_regex_inputs.append(regex_inputs)  # Include the generated inputs
+            all_results.append(result)
+
+        # Break if there was a compile error
         if result.status == HarnessStatus.COMPILE_ERROR:
             break
+
     return regex, all_regex_inputs, all_results

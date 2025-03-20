@@ -74,44 +74,66 @@ class Stats:
             ),
             "total_errors": sum(
                 [
-                    result.status != HarnessStatus.SUCCESS
+                    1
                     for oracle_results in self.results
                     for result in oracle_results
+                    if result.status != HarnessStatus.SUCCESS
                 ]
             ),
             "total_valid": sum(
                 [
-                    result.status == HarnessStatus.SUCCESS
+                    1
                     for oracle_results in self.results
                     for result in oracle_results
+                    if result.status == HarnessStatus.SUCCESS
                 ]
             ),
             "total_oracle_violations": sum(
                 [
-                    result.status == HarnessStatus.FAILED
+                    1
                     for oracle_results in self.results
                     for result in oracle_results
+                    if result.status == HarnessStatus.FAILED
                 ]
             ),
             "total_compile_errors": sum(
                 [
-                    result.status == HarnessStatus.COMPILE_ERROR
+                    1
                     for oracle_results in self.results
                     for result in oracle_results
+                    if result.status == HarnessStatus.COMPILE_ERROR
                 ]
             ),
             "total_run_errors": sum(
                 [
-                    result.status == HarnessStatus.RUN_ERROR
+                    1
                     for oracle_results in self.results
                     for result in oracle_results
+                    if result.status == HarnessStatus.RUN_ERROR
                 ]
             ),
             "total_invalid_seed": sum(
                 [
-                    result.status == HarnessStatus.INVALID_SEED
+                    1
                     for oracle_results in self.results
                     for result in oracle_results
+                    if result.status == HarnessStatus.INVALID_SEED
+                ]
+            ),
+            "total_input_gen_timeout": sum(
+                [
+                    1
+                    for oracle_results in self.results
+                    for result in oracle_results
+                    if result.status == HarnessStatus.INPUT_GEN_TIMEOUT
+                ]
+            ),
+            "total_harness_timeout": sum(
+                [
+                    1
+                    for oracle_results in self.results
+                    for result in oracle_results
+                    if result.status == HarnessStatus.HARNESS_TIMEOUT
                 ]
             ),
         }
@@ -339,6 +361,8 @@ def print_stats(stats: Stats):
             ("Compilation errors", stats_dict["total_compile_errors"]),
             ("Runtime errors", stats_dict["total_run_errors"]),
             ("Invalid seed errors", stats_dict["total_invalid_seed"]),
+            ("Input gen timeout", stats_dict["total_input_gen_timeout"]),
+            ("Harness timeout", stats_dict["total_harness_timeout"]),
         ]
 
         for error_type, count in error_types:
