@@ -127,6 +127,13 @@ class InvalidInputGenerator(ValidInputGenerator):
 
             attempts += 1
 
+        # Special check, zk-regex does not accept empty input e.g., ''
+        invalid_inputs = [
+            invalid_input
+            for invalid_input in invalid_inputs
+            if invalid_input != ""
+        ]
+
         if len(invalid_inputs) == 0:
             raise ValueError(
                 f"Failed to generate any invalid input for regex: {pretty_regex(self.regex)}"
