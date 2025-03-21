@@ -31,6 +31,7 @@ class HarnessStatus(Enum):
     SUBSTR_MISMATCH = 5  # The substr mismatch
     INPUT_GEN_TIMEOUT = 6  # The input generation timed out
     HARNESS_TIMEOUT = 7  # The harness timed out
+    REGEX_TIMEOUT = 8  # The regex timed out
 
 
 @dataclass

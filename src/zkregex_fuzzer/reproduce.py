@@ -9,7 +9,7 @@ from pathlib import Path
 from zkregex_fuzzer.configs import TARGETS
 from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
-from zkregex_fuzzer.runner import RegexCompileError, RegexRunError, PythonReRunner
+from zkregex_fuzzer.runner import PythonReRunner, RegexCompileError, RegexRunError
 from zkregex_fuzzer.utils import pretty_regex
 
 

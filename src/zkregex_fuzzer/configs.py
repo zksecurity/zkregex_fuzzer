@@ -63,6 +63,7 @@ GENERATORS = {
 }
 
 # Default timeouts (in seconds)
-DEFAULT_REGEX_TIMEOUT = 420  # 7 minutes for overall regex processing
+# TODO: those should be multipliers based on number of inputs and orcacles
+DEFAULT_REGEX_TIMEOUT = 900  # 15 minutes for overall regex processing
 DEFAULT_INPUT_GEN_TIMEOUT = 120  # 2 minutes for input generation
-DEFAULT_HARNESS_TIMEOUT = 300  # 5 minutes for harness execution
+DEFAULT_HARNESS_TIMEOUT = 480  # 8 minutes for harness execution

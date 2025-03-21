@@ -2,6 +2,7 @@
 Utility functions for the regex fuzzer.
 """
 
+import concurrent.futures
 import os
 import random
 import re
@@ -254,7 +255,7 @@ def timeout_decorator(seconds, error_message="Timeout"):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            result = [TimeoutError(error_message)]
+            result = [concurrent.futures.TimeoutError(error_message)]
             process_created = threading.Event()
             parent_pid = os.getpid()
 
@@ -275,7 +276,7 @@ def timeout_decorator(seconds, error_message="Timeout"):
 
             # If the thread is still alive after the timeout
             if thread.is_alive():
-                logger.info(f"Timeout occurred: {error_message}")
+                logger.warning(f"Timeout occurred: {error_message}")
 
                 # Find and kill all child processes
                 try:
@@ -297,7 +298,7 @@ def timeout_decorator(seconds, error_message="Timeout"):
                 except Exception as e:
                     logger.error(f"Error killing subprocesses: {e}")
 
-                raise TimeoutError(error_message)
+                raise concurrent.futures.TimeoutError(error_message)
 
             # If the function raised an exception, re-raise it
             if isinstance(result[0], Exception):

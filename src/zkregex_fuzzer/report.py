@@ -144,6 +144,14 @@ class Stats:
                     if result.status == HarnessStatus.SUBSTR_MISMATCH
                 ]
             ),
+            "total_regex_timeout": sum(
+                [
+                    1
+                    for oracle_results in self.results
+                    for result in oracle_results
+                    if result.status == HarnessStatus.REGEX_TIMEOUT
+                ]
+            ),
         }
 
 
@@ -272,7 +280,9 @@ def print_stats(stats: Stats):
 
     # Calculate additional stats for display
     error_rate = (
-        stats_dict["total_errors"] / stats_dict["regexes"] * 100
+        stats_dict["total_errors"]
+        / (stats_dict["total_errors"] + stats_dict["total_valid"])
+        * 100
         if stats_dict["regexes"] > 0
         else 0
     )
@@ -327,6 +337,20 @@ def print_stats(stats: Stats):
     print("╟" + "─" * (term_width - 2) + "╢")
     print("║ 🧪 TEST RESULTS" + " " * (term_width - 18) + "║")
     print("╟" + "─" * (term_width - 2) + "╢")
+
+    print(
+        "║ We skip tests without inputs and tests when there is a compile error         ║"
+    )
+    print(
+        f"║  • Total tests: {stats_dict['total_valid'] + stats_dict['total_errors']:,}"
+        + " "
+        * (
+            term_width
+            - 19
+            - len(f"{stats_dict['total_valid'] + stats_dict['total_errors']:,}")
+        )
+        + "║"
+    )
     print(
         f"║  • Successful tests: {stats_dict['total_valid']:,}"
         + " " * (term_width - 24 - len(f"{stats_dict['total_valid']:,}"))
@@ -372,6 +396,7 @@ def print_stats(stats: Stats):
             ("Invalid seed errors", stats_dict["total_invalid_seed"]),
             ("Input gen timeout", stats_dict["total_input_gen_timeout"]),
             ("Harness timeout", stats_dict["total_harness_timeout"]),
+            ("Regex timeout", stats_dict["total_regex_timeout"]),
         ]
 
         for error_type, count in error_types:
@@ -383,7 +408,7 @@ def print_stats(stats: Stats):
     # Summary section
     print("╠" + "═" * (term_width - 2) + "╣")
     if stats_dict["total_errors"] > 0:
-        summary = f"💥 Found {stats_dict['total_errors']:,} potential issues across {stats_dict['regexes']:,} regexes!"
+        summary = f"💥 Found {stats_dict['total_errors']:,} potential issues by using {stats_dict['regexes']:,} regexes!"
     else:
         summary = "✅ All tests passed successfully! No issues detected."
 

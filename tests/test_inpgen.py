@@ -3,7 +3,6 @@ import re
 from typing import List, Type
 
 import pytest
-
 from zkregex_fuzzer.invinpgen import (
     ComplementBasedGenerator,
     InvalidInputGenerator,
@@ -39,13 +38,13 @@ def test_mutation_based_invalid_generator():
         generator = MutationBasedGenerator(regex)
         invalid_inputs = generator.generate_many(10, 20)
 
-        assert len(invalid_inputs) >= limit_invalid, (
-            f"Expected at least {limit_invalid} invalid input for {regex}"
-        )
+        assert (
+            len(invalid_inputs) >= limit_invalid
+        ), f"Expected at least {limit_invalid} invalid input for {regex}"
         for input in invalid_inputs:
-            assert not check_if_string_is_valid(regex, input), (
-                f"Expected {input} to be invalid"
-            )
+            assert not check_if_string_is_valid(
+                regex, input
+            ), f"Expected {input} to be invalid"
 
 
 def test_complement_based_invalid_generator():
@@ -55,13 +54,13 @@ def test_complement_based_invalid_generator():
         generator = ComplementBasedGenerator(regex)
         invalid_inputs = generator.generate_many(10, 20)
 
-        assert len(invalid_inputs) >= limit_invalid, (
-            f"Expected at least {limit_invalid} invalid input for {regex}"
-        )
+        assert (
+            len(invalid_inputs) >= limit_invalid
+        ), f"Expected at least {limit_invalid} invalid input for {regex}"
         for input in invalid_inputs:
-            assert not check_if_string_is_valid(regex, input), (
-                f"Expected {input} to be invalid"
-            )
+            assert not check_if_string_is_valid(
+                regex, input
+            ), f"Expected {input} to be invalid"
 
 
 def test_nfa_invalid_generator():
@@ -71,13 +70,13 @@ def test_nfa_invalid_generator():
         generator = NFAInvalidGenerator(regex)
         invalid_inputs = generator.generate_many(10, 20)
 
-        assert len(invalid_inputs) >= limit_invalid, (
-            f"Expected at least {limit_invalid} invalid input for {regex}"
-        )
+        assert (
+            len(invalid_inputs) >= limit_invalid
+        ), f"Expected at least {limit_invalid} invalid input for {regex}"
         for input in invalid_inputs:
-            assert not check_if_string_is_valid(regex, input), (
-                f"Expected {input} to be invalid"
-            )
+            assert not check_if_string_is_valid(
+                regex, input
+            ), f"Expected {input} to be invalid"
 
 
 def test_nfa_valid_generator():
@@ -91,13 +90,13 @@ def test_nfa_valid_generator():
         generator = NFAValidGenerator(regex, {})
         valid_inputs = generator.generate_many(10, 20)
 
-        assert len(valid_inputs) >= limit_valid, (
-            f"Expected at least {limit_valid} valid input for {regex}"
-        )
+        assert (
+            len(valid_inputs) >= limit_valid
+        ), f"Expected at least {limit_valid} valid input for {regex}"
         for input in valid_inputs:
-            assert check_if_string_is_valid(regex, input), (
-                f"Expected {input} to be valid"
-            )
+            assert check_if_string_is_valid(
+                regex, input
+            ), f"Expected {input} to be valid"
 
 
 def test_rstr_valid_generator():
@@ -105,13 +104,13 @@ def test_rstr_valid_generator():
         generator = RstrGenerator(regex, {})
         valid_inputs = generator.generate_many(10, 20)
 
-        assert len(valid_inputs) >= limit_valid, (
-            f"Expected at least {limit_valid} valid input for {regex}"
-        )
+        assert (
+            len(valid_inputs) >= limit_valid
+        ), f"Expected at least {limit_valid} valid input for {regex}"
         for input in valid_inputs:
-            assert check_if_string_is_valid(regex, input), (
-                f"Expected {input} to be valid"
-            )
+            assert check_if_string_is_valid(
+                regex, input
+            ), f"Expected {input} to be valid"
 
 
 def test_exrex_valid_generator():
@@ -119,10 +118,10 @@ def test_exrex_valid_generator():
         generator = ExrexGenerator(regex, {})
         valid_inputs = generator.generate_many(10, 20)
 
-        assert len(valid_inputs) >= limit_valid, (
-            f"Expected at least {limit_valid} valid input for {regex}"
-        )
+        assert (
+            len(valid_inputs) >= limit_valid
+        ), f"Expected at least {limit_valid} valid input for {regex}"
         for input in valid_inputs:
-            assert check_if_string_is_valid(regex, input), (
-                f"Expected {input} to be valid"
-            )
+            assert check_if_string_is_valid(
+                regex, input
+            ), f"Expected {input} to be valid"

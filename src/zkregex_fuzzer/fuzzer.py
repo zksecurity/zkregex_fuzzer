@@ -6,6 +6,7 @@ Additionally, generating the regexes should be super fast so it's fine to do it 
 """
 
 import concurrent.futures
+import gc
 import importlib
 import importlib.util
 import os
@@ -32,7 +33,6 @@ from zkregex_fuzzer.regexgen import (
 from zkregex_fuzzer.report import Stats, print_stats
 from zkregex_fuzzer.runner import PythonReRunner
 from zkregex_fuzzer.runner.base_runner import Runner
-from zkregex_fuzzer.transformers import regex_to_grammar
 from zkregex_fuzzer.utils import pretty_regex, timeout_decorator
 
 
@@ -157,9 +157,20 @@ def _process_regex_inputs(param):
 
     try:
         return process_with_timeout()
-    except TimeoutError as e:
+    except concurrent.futures.TimeoutError as e:
         logger.error(f"{e}: {pretty_regex(regex)}")
-        return regex, [], []
+        oracle = oracle_params[0][0]
+        results = [
+            HarnessResult(
+                regex=regex,
+                inp_num=0,
+                oracle=oracle,
+                status=HarnessStatus.REGEX_TIMEOUT,
+                failed_inputs=[],
+                error_message=str(e),
+            )
+        ]
+        return regex, [], results
 
 
 def bug_logging(regex, inputs, result):
@@ -236,30 +247,44 @@ def fuzz_with_regexes(
                 }
 
                 # Process results as they complete with a strict timeout
-                for future in concurrent.futures.as_completed(futures_to_regex):
-                    regex = futures_to_regex[future]
-                    try:
-                        # Add a strict timeout to get the result
-                        result = future.result(timeout=timeout_per_regex)
-                        results.append(result)
-                        _process_results(regex, result)
-                    except concurrent.futures.TimeoutError:
-                        logger.error(
-                            f"Executor timeout after {timeout_per_regex}s processing regex: {pretty_regex(regex)}"
-                        )
-                        # Try to cancel the future
-                        future.cancel()
-                        # Add a placeholder result to maintain count
-                        results.append((regex, [], []))
-                    except Exception as exc:
-                        logger.error(
-                            f"Error processing regex {pretty_regex(regex)}: {exc}"
-                        )
-                        # Add a placeholder result to maintain count
-                        results.append((regex, [], []))
-                    finally:
-                        # Always update progress bar regardless of success/failure
-                        pbar.update(1)
+                try:
+                    for future in concurrent.futures.as_completed(
+                        futures_to_regex,
+                        timeout=timeout_per_regex * int(len(params) / n_process),
+                    ):
+                        regex = futures_to_regex[future]
+                        try:
+                            # Add a strict timeout to get the result
+                            result = future.result(timeout=timeout_per_regex)
+                            results.append(result)
+                            _process_results(regex, result)
+                        except concurrent.futures.TimeoutError:
+                            logger.error(
+                                f"Executor timeout after {timeout_per_regex}s processing regex: {pretty_regex(regex)}"
+                            )
+                            # Try to cancel the future
+                            future.cancel()
+                            # Add a placeholder result to maintain count
+                            results.append((regex, [], []))
+                        except Exception as exc:
+                            logger.error(
+                                f"Error processing regex {pretty_regex(regex)}: {exc}"
+                            )
+                            # Add a placeholder result to maintain count
+                            results.append((regex, [], []))
+                        finally:
+                            # Always update progress bar regardless of success/failure
+                            pbar.update(1)
+                except concurrent.futures.TimeoutError:
+                    logger.error(
+                        f"Timeout after {timeout_per_regex*len(params)}s processing regexes"
+                    )
+                    # Cancel any remaining futures before exiting the context
+                    for future in futures_to_regex:
+                        if not future.done():
+                            future.cancel()
+            # Garbage collect
+            gc.collect()
     else:
         results = []
         for regex in regexes:
@@ -283,7 +308,7 @@ def fuzz_with_regexes(
                 result = process_single_regex()
                 _process_results(regex, result)
                 results.append(result)
-            except TimeoutError as e:
+            except concurrent.futures.TimeoutError as e:
                 logger.error(f"{e}: {pretty_regex(regex)}")
                 results.append((regex, [], []))
             except Exception as exc:
@@ -332,7 +357,7 @@ def harness_runtime(
                 )
 
             regex_inputs = generate_inputs()
-        except TimeoutError as e:
+        except concurrent.futures.TimeoutError as e:
             logger.warning(f"{e} for regex: {pretty_regex(regex)}")
             # Create a result with INPUT_GEN_TIMEOUT status
             result = HarnessResult(
@@ -363,7 +388,7 @@ def harness_runtime(
             result = run_harness()
             all_regex_inputs.append(regex_inputs)
             all_results.append(result)
-        except TimeoutError as e:
+        except concurrent.futures.TimeoutError as e:
             logger.warning(f"{e} for regex: {pretty_regex(regex)}")
             # Create a result with HARNESS_TIMEOUT status
             result = HarnessResult(
@@ -381,4 +406,5 @@ def harness_runtime(
         if result.status == HarnessStatus.COMPILE_ERROR:
             break
 
+    gc.collect()
     return regex, all_regex_inputs, all_results
