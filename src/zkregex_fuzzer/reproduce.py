@@ -9,7 +9,7 @@ from pathlib import Path
 from zkregex_fuzzer.configs import TARGETS
 from zkregex_fuzzer.harness import HarnessStatus
 from zkregex_fuzzer.logger import logger
-from zkregex_fuzzer.runner import RegexCompileError, RegexRunError
+from zkregex_fuzzer.runner import RegexCompileError, RegexRunError, PythonReRunner
 from zkregex_fuzzer.utils import pretty_regex
 
 
@@ -100,12 +100,18 @@ def simulate_harness(directory: Path):
         print("═" * 80 + "\n")
         return
 
+    python_runner = PythonReRunner(regex, kwargs)
+
     failed_inputs = []
+    mismatched_inputs = []
     for input in inputs:
         try:
             runner_status, runner_str = runner.match(input)
+            _, python_runner_str = python_runner.match(input)
             if runner_status != oracle:
                 failed_inputs.append(input)
+            elif runner_str != python_runner_str:
+                mismatched_inputs.append(input)
 
         except RegexRunError as e:
             if expected_status == HarnessStatus.RUN_ERROR.name:
@@ -136,6 +142,28 @@ def simulate_harness(directory: Path):
         else:
             print(f"❌ Unexpected FAILED status (expected {expected_status})")
             print(f"   {len(failed_inputs)}/{len(inputs)} inputs failed validation")
+    elif len(mismatched_inputs) > 0:
+        if expected_status == HarnessStatus.SUBSTR_MISMATCH.name:
+            print("✅ Successfully reproduced SUBSTR_MISMATCH status!")
+            print(f"   {len(mismatched_inputs)}/{len(inputs)} inputs mismatched")
+
+            # Show the failed inputs
+            print("\n⚠️ Mismatched inputs:")
+            for i, inp in enumerate(mismatched_inputs, 1):
+                display_input = inp
+                if len(inp) > 70:
+                    display_input = inp[:67] + "..."
+                display_input = (
+                    display_input.replace("\n", "\\n")
+                    .replace("\t", "\\t")
+                    .replace("\r", "\\r")
+                )
+                print(f'   {i}. "{display_input}"')
+                print(f"    - Expected: {python_runner_str}")
+                print(f"    - Actual: {runner_str}")
+        else:
+            print(f"❌ Unexpected SUBSTR_MISMATCH status (expected {expected_status})")
+            print(f"   {len(mismatched_inputs)}/{len(inputs)} inputs mismatched")
     else:
         if expected_status == HarnessStatus.SUCCESS.name:
             print("✅ Successfully reproduced SUCCESS status!")
