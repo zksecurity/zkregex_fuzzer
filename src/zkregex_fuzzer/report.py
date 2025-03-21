@@ -30,6 +30,7 @@ class Configuration:
     logging_file: str | None
     output_path: str
     save_options: list[str]
+    char_set: str
 
 
 class Stats:
@@ -181,6 +182,7 @@ Barretenberg: {configuration.bb_version}
 Logging file: {configuration.logging_file}
 Output path: {configuration.output_path}
 Save options: {configuration.save_options}
+Char set: {configuration.char_set}
 """
 
 
@@ -251,6 +253,7 @@ def print_fuzzing_configuration(configuration: Configuration):
             f"📥 Inputs num: {configuration.inputs_num}",
             f"🔍 Max non-terminals: {configuration.grammar_max_non_terminals}",
             f"🔍 Custom grammar: {configuration.grammar_custom_grammar}",
+            f"🔍 Char set: {configuration.char_set}",
             f"🌱 Seed: {configuration.seed}",
             f"🔄 Num process: {configuration.num_process}",
             f"🔍 Logging file: {os.path.relpath(configuration.logging_file, os.getcwd()) if configuration.logging_file else 'None'}",

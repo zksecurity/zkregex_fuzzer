@@ -52,6 +52,10 @@ def fuzz_with_grammar(
 
     if target_grammar == "basic":
         grammar = GRAMMARS[target_grammar]
+    elif target_grammar == "controlled_utf8":
+        grammar = GRAMMARS[target_grammar]
+    elif target_grammar == "uncontrolled_utf8":
+        grammar = GRAMMARS[target_grammar]
     elif target_grammar.endswith(".py"):
         try:
             # Get absolute path
@@ -277,7 +281,7 @@ def fuzz_with_regexes(
                             pbar.update(1)
                 except concurrent.futures.TimeoutError:
                     logger.error(
-                        f"Timeout after {timeout_per_regex*len(params)}s processing regexes"
+                        f"Timeout after {timeout_per_regex * len(params)}s processing regexes"
                     )
                     # Cancel any remaining futures before exiting the context
                     for future in futures_to_regex:

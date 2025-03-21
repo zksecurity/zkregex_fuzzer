@@ -45,9 +45,9 @@ def test_has_lazy_quantifier():
         (r".+?", True),
     ]
     for pattern, expected in patterns:
-        assert (
-            has_lazy_quantifier(pattern) == expected
-        ), f"Expected {pattern} to have lazy quantifier: {expected}"
+        assert has_lazy_quantifier(pattern) == expected, (
+            f"Expected {pattern} to have lazy quantifier: {expected}"
+        )
 
 
 def test_correct_carret_position():
@@ -97,9 +97,9 @@ def test_correct_carret_position():
         (r"abc\^def", True),
     ]
     for regex, expected in test_cases:
-        assert (
-            correct_carret_position(regex) == expected
-        ), f"Expected {regex} to have correct caret position: {expected}"
+        assert correct_carret_position(regex) == expected, (
+            f"Expected {regex} to have correct caret position: {expected}"
+        )
 
 
 def test_check_zkregex_rules_basic():
@@ -155,9 +155,9 @@ def test_check_zkregex_rules_basic():
         (r"(\r\n|^)message-id:<[A-Za-z0-9=@\.\+_-]+>\r\n", (True, True)),
     ]
     for regex, expected in test_cases:
-        assert (
-            check_zkregex_rules_basic(regex) == expected
-        ), f"Expected {regex} to have correct zk-regex rules: {expected}"
+        assert check_zkregex_rules_basic(regex) == expected, (
+            f"Expected {regex} to have correct zk-regex rules: {expected}"
+        )
 
 
 def test_extract_parts():
@@ -214,6 +214,6 @@ def test_extract_parts():
 
     for regex, expected in test_cases:
         result = extract_parts(regex)
-        assert (
-            result == expected
-        ), f"Failed for regex '{regex}': got {result}, expected {expected}"
+        assert result == expected, (
+            f"Failed for regex '{regex}': got {result}, expected {expected}"
+        )

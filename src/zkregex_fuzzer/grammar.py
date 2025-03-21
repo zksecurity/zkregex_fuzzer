@@ -20,10 +20,13 @@ TODO:
  - Add more grammars.
 """
 
+import copy
 import string
 from typing import List
 
 from fuzzingbook.Grammars import Expansion, Grammar
+
+from zkregex_fuzzer.chars import CONTROLLED_UTF8_CHARS, UNCONTROLLED_UTF8_CHARS
 
 
 def srange(characters: str) -> List[Expansion]:
@@ -135,6 +138,28 @@ BASIC_REGEX_GRAMMAR: Grammar = {
     # Escaped special characters
     "<ESCAPED>": [f"\\{c}" for c in "\\^$.|?*+()[]{}`-&"],
 }
+
+CONTROLLED_UTF8_GRAMMAR: Grammar = copy.deepcopy(BASIC_REGEX_GRAMMAR)
+CONTROLLED_UTF8_GRAMMAR["<CHAR>"] = [
+    "<LETTER>",
+    "<DIGIT>",
+    "<SYMBOL>",
+    "<ESCAPED>",
+    "<UTF8_CHAR>",
+]
+CONTROLLED_UTF8_GRAMMAR["<UTF8_CHAR>"] = list(CONTROLLED_UTF8_CHARS.non_escaped_chars)
+
+UNCONTROLLED_UTF8_GRAMMAR: Grammar = copy.deepcopy(BASIC_REGEX_GRAMMAR)
+UNCONTROLLED_UTF8_GRAMMAR["<CHAR>"] = [
+    "<LETTER>",
+    "<DIGIT>",
+    "<SYMBOL>",
+    "<ESCAPED>",
+    "<UTF8_CHAR>",
+]
+UNCONTROLLED_UTF8_GRAMMAR["<UTF8_CHAR>"] = list(
+    UNCONTROLLED_UTF8_CHARS.non_escaped_chars
+)
 
 OLD_GRAMMAR: Grammar = {
     # Entry point

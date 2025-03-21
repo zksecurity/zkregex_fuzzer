@@ -13,23 +13,14 @@ from automata.fa.dfa import DFA
 from automata.fa.gnfa import GNFA
 from automata.fa.nfa import NFA
 
-from zkregex_fuzzer.chars import SUPPORTED_CHARS
-
-
-def get_supported_symbols() -> set[str]:
-    """
-    Get the set of symbols that are supported by the regex engine.
-    """
-    # TODO make this configurable
-    # Symbols should include at least all ASCII characters
-    return SUPPORTED_CHARS
+from zkregex_fuzzer.chars import SupportedCharsManager
 
 
 def regex_to_nfa(regex: str) -> NFA:
     """
     Convert a regex to an NFA.
     """
-    symbols = get_supported_symbols()
+    symbols = SupportedCharsManager().get_chars().all_chars
     regex = unwrap_regex(regex)
 
     try:
@@ -370,7 +361,9 @@ def dfa_string_matching(
     # TODO make this configurable
     max_length = 500
     # Convert regex to NFA
-    nfa = NFA.from_regex(regex, input_symbols=get_supported_symbols())
+    nfa = NFA.from_regex(
+        regex, input_symbols=SupportedCharsManager().get_chars().all_chars
+    )
 
     # Start with the initial state and an empty string
     current_states = nfa._get_lambda_closures()[nfa.initial_state]

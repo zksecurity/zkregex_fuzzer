@@ -1,4 +1,9 @@
-from zkregex_fuzzer.grammar import BASIC_REGEX_GRAMMAR, OLD_GRAMMAR
+from zkregex_fuzzer.grammar import (
+    BASIC_REGEX_GRAMMAR,
+    CONTROLLED_UTF8_GRAMMAR,
+    OLD_GRAMMAR,
+    UNCONTROLLED_UTF8_GRAMMAR,
+)
 from zkregex_fuzzer.invinpgen import (
     ComplementBasedGenerator,
     MutationBasedGenerator,
@@ -36,6 +41,8 @@ TARGETS = {
 GRAMMARS = {
     "basic": BASIC_REGEX_GRAMMAR,
     "old": OLD_GRAMMAR,
+    "controlled_utf8": CONTROLLED_UTF8_GRAMMAR,
+    "uncontrolled_utf8": UNCONTROLLED_UTF8_GRAMMAR,
 }
 
 VALID_INPUT_GENERATORS = {

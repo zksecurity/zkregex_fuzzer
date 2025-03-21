@@ -11,7 +11,7 @@ from typing import List, Optional
 
 import exrex
 
-from zkregex_fuzzer.chars import SUPPORTED_CHARS
+from zkregex_fuzzer.chars import SupportedCharsManager
 from zkregex_fuzzer.dfa import regex_to_nfa
 from zkregex_fuzzer.logger import logger
 from zkregex_fuzzer.utils import check_if_string_is_valid, extract_parts, pretty_regex
@@ -170,7 +170,11 @@ class MutationBasedGenerator(InvalidInputGenerator):
                 if should_mutate:
                     # Note that we can still mutate to a valid character
                     invalid_input[i] = random.choice(
-                        list(SUPPORTED_CHARS.difference({invalid_input[i]}))
+                        list(
+                            SupportedCharsManager()
+                            .get_chars()
+                            .including_escaped_chars.difference({invalid_input[i]})
+                        )
                     )
                     if (
                         not check_if_string_is_valid(self.regex, "".join(invalid_input))

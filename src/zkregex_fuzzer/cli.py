@@ -8,6 +8,7 @@ import random
 import uuid
 from pathlib import Path
 
+from zkregex_fuzzer.chars import SupportedCharsManager
 from zkregex_fuzzer.configs import (
     DEFAULT_HARNESS_TIMEOUT,
     DEFAULT_INPUT_GEN_TIMEOUT,
@@ -178,6 +179,12 @@ def fuzz_parser():
         default=DEFAULT_HARNESS_TIMEOUT,
         help="Timeout for harness execution (default: 300).",
     )
+    parser.add_argument(
+        "--char-set",
+        choices=["ascii", "controlled_utf8", "uncontrolled_utf8"],
+        default="ascii",
+        help="The character set to use for the fuzzer (default: ascii).",
+    )
     return parser
 
 
@@ -283,6 +290,7 @@ def do_fuzz(args):
         logging_file=logging_file,
         output_path=args.save_output,
         save_options=args.save,
+        char_set=args.char_set,
     )
 
     # Use the new reporting function to print configuration
@@ -383,6 +391,15 @@ def main():
     args = parser.parse_args()
 
     logger.setLevel(args.logger_level)
+
+    # set supported chars singleton
+    if args.grammar_custom_grammar == "basic":
+        args.char_set = "ascii"
+    elif args.grammar_custom_grammar == "controlled_utf8":
+        args.char_set = "controlled_utf8"
+    elif args.grammar_custom_grammar == "uncontrolled_utf8":
+        args.char_set = "uncontrolled_utf8"
+    SupportedCharsManager(args.char_set)
 
     if args.subcommand == "fuzz":
         do_fuzz(args)
