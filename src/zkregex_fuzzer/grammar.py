@@ -131,9 +131,9 @@ BASIC_REGEX_GRAMMAR: Grammar = {
     "<LOWER_LETTER>": crange("a", "z"),
     "<UPPER_LETTER>": crange("A", "Z"),
     # Symbols that are safe to use directly
-    "<SYMBOL>": srange(" !\"#$%&',-/:;<=>@_`~"),
+    "<SYMBOL>": srange(" !\"#%',/:;<=>@_~"),
     # Escaped special characters
-    "<ESCAPED>": [f"\\{c}" for c in "\\^$.|?*+()[]{"],
+    "<ESCAPED>": [f"\\{c}" for c in "\\^$.|?*+()[]{}`-&"],
 }
 
 OLD_GRAMMAR: Grammar = {

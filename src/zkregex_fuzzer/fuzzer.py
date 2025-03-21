@@ -9,14 +9,8 @@ import concurrent.futures
 import importlib
 import importlib.util
 import os
-import signal
-import threading
-import time
 from concurrent.futures import ProcessPoolExecutor
-from functools import wraps
 
-import psutil
-from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 from tqdm.auto import tqdm
 
 from zkregex_fuzzer.configs import (
@@ -39,7 +33,7 @@ from zkregex_fuzzer.report import Stats, print_stats
 from zkregex_fuzzer.runner import PythonReRunner
 from zkregex_fuzzer.runner.base_runner import Runner
 from zkregex_fuzzer.transformers import regex_to_grammar
-from zkregex_fuzzer.utils import pretty_regex
+from zkregex_fuzzer.utils import pretty_regex, timeout_decorator
 
 
 def fuzz_with_grammar(
@@ -140,67 +134,6 @@ def fuzz_with_dfa(
     logger.info(f"Generated {len(regexes)} regexes.")
 
     fuzz_with_regexes(regexes, inputs_num, target_runner, oracle_params, kwargs)
-
-
-# Enhanced timeout decorator that kills subprocesses
-def timeout_decorator(seconds, error_message="Timeout"):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            result = [TimeoutError(error_message)]
-            process_created = threading.Event()
-            parent_pid = os.getpid()
-
-            def target():
-                try:
-                    result[0] = func(*args, **kwargs)
-                except Exception as e:
-                    result[0] = e
-                finally:
-                    process_created.set()  # Signal that we're done
-
-            thread = threading.Thread(target=target)
-            thread.daemon = True
-            thread.start()
-
-            # Wait for the function to complete or timeout
-            thread.join(seconds)
-
-            # If the thread is still alive after the timeout
-            if thread.is_alive():
-                logger.warning(f"Timeout occurred: {error_message}")
-
-                # Find and kill all child processes
-                try:
-                    parent = psutil.Process(parent_pid)
-                    children = parent.children(recursive=True)
-
-                    for child in children:
-                        try:
-                            # Check if this is a process created by our function
-                            # This is a heuristic - we're assuming processes created
-                            # during the function execution are related to it
-                            if child.create_time() > time.time() - seconds - 1:
-                                logger.warning(
-                                    f"Killing subprocess with PID {child.pid}"
-                                )
-                                child.kill()
-                        except (psutil.NoSuchProcess, psutil.AccessDenied):
-                            pass
-                except Exception as e:
-                    logger.error(f"Error killing subprocesses: {e}")
-
-                raise TimeoutError(error_message)
-
-            # If the function raised an exception, re-raise it
-            if isinstance(result[0], Exception):
-                raise result[0]
-
-            return result[0]
-
-        return wrapper
-
-    return decorator
 
 
 def _process_regex_inputs(param):

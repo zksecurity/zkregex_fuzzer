@@ -13,15 +13,18 @@ TODO:
 - Add a DFA-based generator?
 """
 
+import concurrent.futures
+import gc
 import glob
 import json
+import os
 import pathlib
 import random
 from abc import ABC, abstractmethod
 from typing import List
 
-import tqdm
 from fuzzingbook.Grammars import Grammar
+from tqdm import tqdm
 
 from zkregex_fuzzer.dfa import (
     generate_random_dfa,
@@ -32,7 +35,11 @@ from zkregex_fuzzer.utils import (
     check_zkregex_rules_basic,
     grammar_fuzzer,
     is_valid_regex,
+    timeout_decorator,
 )
+
+# Default number of max tries multiplier for regex generation
+DEFAULT_MAX_TRIES_MULTIPLIER = 10
 
 
 class RegexGenerator(ABC):
@@ -47,6 +54,7 @@ class RegexGenerator(ABC):
         """
         pass
 
+    @timeout_decorator(5, "Regex generation timeout")
     def generate(self) -> str:
         """
         Generate a regex.
@@ -55,7 +63,7 @@ class RegexGenerator(ABC):
             regex = self.generate_unsafe()
             if not is_valid_regex(regex):
                 continue
-            correct, accepting_state_check = check_zkregex_rules_basic(regex)
+            correct, _ = check_zkregex_rules_basic(regex)
             if not correct:
                 # TODO: We should try to fix the regex if it has multiple accepting states
                 continue
@@ -66,36 +74,42 @@ class RegexGenerator(ABC):
         """
         Generate `num` regexes.
         """
-        max_tries = num + 100
+        initial_max_tries = num * DEFAULT_MAX_TRIES_MULTIPLIER
+        max_tries = initial_max_tries
         logger.debug(f"Generating {num} regexes.")
-        regexes = []
+        regexes = set()
 
-        # Create a progress bar
-        pbar = tqdm.tqdm(total=num, desc="Generating regexes", unit="regex")
+        max_workers = max(1, os.cpu_count() or 1)
+        max_workers = max_workers - 1 if max_workers > 1 else 1
 
-        # Track current progress
-        current_count = 0
-
-        while len(regexes) < num:
-            regex = self.generate()
-            if regex not in regexes:
-                regexes.append(regex)
-                # Update progress bar only when we add a new regex
-                pbar.update(1)
-                current_count += 1
-
-            max_tries -= 1
-            if max_tries <= 0:
-                logger.warning(
-                    f"Generated {len(regexes)} regexes in {max_tries} tries."
-                )
-                pbar.close()
-                return regexes
-
-        # Close the progress bar when done
-        pbar.close()
-
-        return regexes
+        with tqdm(total=num, desc="Generating Regexes") as pbar:
+            while len(regexes) < num:
+                with concurrent.futures.ProcessPoolExecutor(
+                    max_workers=max_workers
+                ) as executor:
+                    future_to_idx = {
+                        executor.submit(self.generate): i
+                        for i in range(num - len(regexes))
+                    }
+                    for future in concurrent.futures.as_completed(future_to_idx):
+                        try:
+                            regex = future.result()
+                            if regex not in regexes:
+                                regexes.add(regex)
+                                pbar.update(1)
+                            else:
+                                max_tries -= 1
+                        except Exception as e:
+                            logger.debug(f"Regex generation failed: {e}")
+                            max_tries -= 1
+                # Ensure garbage collection runs to clean up any lingering references
+                gc.collect()
+                if max_tries <= 0:
+                    logger.warning(
+                        f"Generated {len(regexes)} regexes with {initial_max_tries} max tries."
+                    )
+                    return list(regexes)
+        return list(regexes)
 
 
 class GrammarRegexGenerator(RegexGenerator):

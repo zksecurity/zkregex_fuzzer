@@ -2,10 +2,16 @@
 Utility functions for the regex fuzzer.
 """
 
+import os
 import random
 import re
 import string
+import threading
+import time
 import warnings
+from functools import wraps
+
+import psutil
 from fuzzingbook.Grammars import Grammar, simple_grammar_fuzzer
 
 from zkregex_fuzzer.dfa import wrapped_has_one_accepting_state_regex
@@ -238,3 +244,67 @@ def python_substring(regex: str, input: str) -> str:
                 substr.append(match.group())
 
     return "".join(substr)
+
+
+def timeout_decorator(seconds, error_message="Timeout"):
+    """
+    Decorator that times out a function after a given number of seconds.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = [TimeoutError(error_message)]
+            process_created = threading.Event()
+            parent_pid = os.getpid()
+
+            def target():
+                try:
+                    result[0] = func(*args, **kwargs)
+                except Exception as e:
+                    result[0] = e
+                finally:
+                    process_created.set()  # Signal that we're done
+
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()
+
+            # Wait for the function to complete or timeout
+            thread.join(seconds)
+
+            # If the thread is still alive after the timeout
+            if thread.is_alive():
+                logger.info(f"Timeout occurred: {error_message}")
+
+                # Find and kill all child processes
+                try:
+                    parent = psutil.Process(parent_pid)
+                    children = parent.children(recursive=True)
+
+                    for child in children:
+                        try:
+                            # Check if this is a process created by our function
+                            # This is a heuristic - we're assuming processes created
+                            # during the function execution are related to it
+                            if child.create_time() > time.time() - seconds - 1:
+                                logger.warning(
+                                    f"Killing subprocess with PID {child.pid}"
+                                )
+                                child.kill()
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            pass
+                except Exception as e:
+                    logger.error(f"Error killing subprocesses: {e}")
+
+                raise TimeoutError(error_message)
+
+            # If the function raised an exception, re-raise it
+            if isinstance(result[0], Exception):
+                raise result[0]
+
+            return result[0]
+
+        return wrapper
+
+    return decorator
