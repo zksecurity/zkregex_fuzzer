@@ -23,6 +23,7 @@ class CircomRunner(Runner):
 
     def __init__(self, regex: str, kwargs: dict):
         self._circom_path = ""
+        self._graph_path = ""
         self._r1cs_path = ""
         self._wasm_path = ""
         self._zkey_path = ""
@@ -34,7 +35,7 @@ class CircomRunner(Runner):
         self._ptau_path = kwargs.get("circom_ptau", None)
         self._link_path = kwargs.get("circom_library", [])
         self._circom_max_input_size = kwargs.get("max_input_size", 200)
-        self._template_name = "TestRegex"
+        self._template_name = "Test"
         super().__init__(regex, kwargs)
         self._runner = "Circom"
         self.identifer = ""
@@ -51,11 +52,12 @@ class CircomRunner(Runner):
         # else, make the section public
         if regex.startswith("^"):
             regex_parts = [
-                {"regex_def": regex[0], "is_public": False},
-                {"regex_def": regex[1:], "is_public": True},
+                {"Pattern": regex[1:]},
             ]
         else:
-            regex_parts = [{"regex_def": regex, "is_public": True}]
+            regex_parts = [
+                {"Pattern": regex},
+            ]
 
         base_json["parts"] = regex_parts
         regex_json = json.dumps(base_json)
@@ -65,24 +67,26 @@ class CircomRunner(Runner):
         with open(json_file_path, "wb") as f:
             f.write(regex_json.encode())
 
-        circom_file_path = str(Path(self._dir_path) / "regex.circom")
-
         # Call zk-regex to generate the circom code
         logger.debug("Generating circom code starts")
         ZkRegexSubprocess.compile_to_circom(
-            json_file_path, circom_file_path, self._template_name
+            json_file_path, self._dir_path, self._template_name
         )
         logger.debug("Generating circom code ends")
+
+        circom_file_path = str(Path(self._dir_path) / "test_regex.circom")
+        graph_file_path = str(Path(self._dir_path) / "test_graph.json")
 
         # Append the circom file to include the main function
         with open(circom_file_path, "a") as f:
             f.write("\n\n")
             f.write(
-                "component main {public [msg]} = "
-                + f"{self._template_name}({self._circom_max_input_size});"
+                "component main { public [inHaystack] } = "
+                + f"{self._template_name}Regex({self._circom_max_input_size}, {self._circom_max_input_size - 2});"
             )
 
         self._circom_path = circom_file_path
+        self._graph_path = graph_file_path
 
         # Compile the circom code to wasm
         logger.debug("Compiling circom code starts")
@@ -104,21 +108,17 @@ class CircomRunner(Runner):
         Match the regex on an input.
         """
         logger.debug("Matching regex starts")
-        # Convert input to list of decimal ASCII values and pad input with zeroes
-        numeric_input = [ord(c) for c in input] + [0] * (
-            self._circom_max_input_size - len(input)
+        # Generate circuit inputs using zk-regex CLI
+        input_path = str(Path(self._dir_path) / "test_input.json")
+        ZkRegexSubprocess.generate_circom_inputs(
+            graph_path=self._graph_path,
+            input_str=input,
+            max_haystack_len=self._circom_max_input_size,
+            max_match_len=self._circom_max_input_size - 2,
+            output_path=input_path,
         )
 
-        # Write input to a temporary JSON file
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp_file:
-            tmp_file.write(json.dumps({"msg": numeric_input}).encode())
-            input_path = tmp_file.name
-
         self._input_path = input_path
-
-        # Skip if input is larger than circuit max input size
-        if len(numeric_input) > self._circom_max_input_size:
-            raise RegexRunError(f"Input too large for input: {len(numeric_input)}")
 
         # Generate the witness
         logger.debug("Generating witness starts")
@@ -138,7 +138,7 @@ class CircomRunner(Runner):
         # Extract from the witness the result of the match
         result = SnarkjsSubprocess.extract_witness(witness_path)
 
-        substr_length = len(numeric_input)
+        substr_length = len(input)
         substr_output_numeric = result[2 : substr_length + 2]
         substr_output = "".join([chr(int(c)) for c in substr_output_numeric])
         substr_output = substr_output.strip("\x00")  # remove zero padding

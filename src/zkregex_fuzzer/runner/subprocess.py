@@ -43,13 +43,44 @@ class ZkRegexSubprocess:
             output_file_path,
             "-t",
             template_name,
-            "-g",
-            "true" if substr else "false",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
             raise RegexCompileError(f"Error compiling with zk-regex: {result.stderr}")
+
+    @classmethod
+    def generate_circom_inputs(
+        cls,
+        graph_path: str,
+        input_str: str,
+        max_haystack_len: int,
+        max_match_len: int,
+        output_path: str,
+    ) -> None:
+        """
+        Generate Circom inputs from a cached graph and test string.
+        """
+        cmd = [
+            "zk-regex",
+            "generate-circom-input",
+            "-g",
+            graph_path,
+            "-i",
+            input_str,
+            "-h",
+            str(max_haystack_len),
+            "-m",
+            str(max_match_len),
+            "-o",
+            output_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise RegexRunError(
+                f"Error generating inputs with zk-regex: {result.stderr}"
+            )
 
     @classmethod
     def compile_to_noir(
