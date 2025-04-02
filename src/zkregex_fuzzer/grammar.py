@@ -58,17 +58,17 @@ BASIC_REGEX_GRAMMAR: Grammar = {
         "<EXPR>$",
         "^<EXPR>$",
         # Alternative caret forms
-        "(|^)<EXPR>",  # Empty or start of line
-        "(\\r\\n|^)<EXPR>",  # Windows newline or start of line
-        "(\\n|^)<EXPR>",  # Unix newline or start of line
-        "(\\r|^)<EXPR>",  # Carriage return or start of line
-        "(\\n\\r|^)<EXPR>",  # Reverse Windows newline or start of line
+        "\\(\\?:|^\\)<EXPR>",  # Empty or start of line
+        "\\(\\?:\\r\\n|^\\)<EXPR>",  # Windows newline or start of line
+        "\\(\\?:\\n|^\\)<EXPR>",  # Unix newline or start of line
+        "\\(\\?:\\r|^\\)<EXPR>",  # Carriage return or start of line
+        "\\(\\?:\\n\\r|^\\)<EXPR>",  # Reverse Windows newline or start of line
         # Combinations with end anchors
-        "(|^)<EXPR>$",
-        "(\\r\\n|^)<EXPR>$",
-        "(\\n|^)<EXPR>$",
-        "(\\r|^)<EXPR>$",
-        "(\\n\\r|^)<EXPR>$",
+        "\\(\\?:|^\\)<EXPR>$",
+        "\\(\\?:\\r\\n|^\\)<EXPR>$",
+        "\\(\\?:\\n|^\\)<EXPR>$",
+        "\\(\\?:\\r|^\\)<EXPR>$",
+        "\\(\\?:\\n\\r|^\\)<EXPR>$",
     ],
     # Expression is a series of alternations
     "<EXPR>": ["<ALT>"],
@@ -99,7 +99,7 @@ BASIC_REGEX_GRAMMAR: Grammar = {
         "<CHAR>",  # Single character
         ".",  # Any character
         "<CHARCLASS>",  # Character class
-        "(<EXPR>)",  # Grouped expression
+        "\\(\\?:<EXPR>\\)",  # Grouped expression
         "<SHORTHAND>",  # Character class shorthand
     ],
     # Shorthand character classes
