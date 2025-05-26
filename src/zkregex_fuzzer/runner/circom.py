@@ -110,12 +110,13 @@ class CircomRunner(Runner):
         logger.debug("Matching regex starts")
         # Generate circuit inputs using zk-regex CLI
         input_path = str(Path(self._dir_path) / "test_input.json")
-        ZkRegexSubprocess.generate_circom_inputs(
+        ZkRegexSubprocess.generate_circuit_inputs(
             graph_path=self._graph_path,
             input_str=input,
             max_haystack_len=self._circom_max_input_size,
             max_match_len=self._circom_max_input_size - 2,
             output_path=input_path,
+            proving_framework="circom",
         )
 
         self._input_path = input_path

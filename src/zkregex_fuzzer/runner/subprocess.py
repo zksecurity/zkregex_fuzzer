@@ -37,12 +37,14 @@ class ZkRegexSubprocess:
         cmd = [
             "zk-regex",
             "decomposed",
-            "-d",
+            "--decomposed-regex-path",
             json_file_path,
-            "-c",
+            "--output-file-path",
             output_file_path,
-            "-t",
+            "--template-name",
             template_name,
+            "--proving-framework",
+            "circom",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -50,30 +52,33 @@ class ZkRegexSubprocess:
             raise RegexCompileError(f"Error compiling with zk-regex: {result.stderr}")
 
     @classmethod
-    def generate_circom_inputs(
+    def generate_circuit_inputs(
         cls,
         graph_path: str,
         input_str: str,
         max_haystack_len: int,
         max_match_len: int,
         output_path: str,
+        proving_framework: str,
     ) -> None:
         """
         Generate Circom inputs from a cached graph and test string.
         """
         cmd = [
             "zk-regex",
-            "generate-circom-input",
-            "-g",
+            "generate-circuit-input",
+            "--graph-path",
             graph_path,
-            "-i",
+            "--input",
             input_str,
-            "-h",
+            "--max-haystack-len",
             str(max_haystack_len),
-            "-m",
+            "--max-match-len",
             str(max_match_len),
-            "-o",
+            "--output-file-path",
             output_path,
+            "--proving-framework",
+            proving_framework,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -97,14 +102,14 @@ class ZkRegexSubprocess:
         cmd = [
             "zk-regex",
             "decomposed",
-            "-d",
+            "--decomposed-regex-path",
             json_file_path,
-            "--noir-file-path",
+            "--output-file-path",
             output_file_path,
-            "-t",
+            "--template-name",
             template_name,
-            "-g",
-            "true" if substr else "false",
+            "--proving-framework",
+            "noir",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
