@@ -21,7 +21,7 @@ class CircomRunner(Runner):
     Runner that uses the Circom compiler.
     """
 
-    def __init__(self, regex: str, kwargs: dict):
+    def __init__(self, regex: str, oracle: bool, kwargs: dict):
         self._circom_path = ""
         self._graph_path = ""
         self._r1cs_path = ""
@@ -36,7 +36,7 @@ class CircomRunner(Runner):
         self._link_path = kwargs.get("circom_library", [])
         self._circom_max_input_size = kwargs.get("max_input_size", 200)
         self._template_name = "Test"
-        super().__init__(regex, kwargs)
+        super().__init__(regex, oracle, kwargs)
         self._runner = "Circom"
         self.identifer = ""
 
@@ -117,6 +117,7 @@ class CircomRunner(Runner):
             max_match_len=self._circom_max_input_size - 2,
             output_path=input_path,
             proving_framework="circom",
+            oracle=self._oracle,
         )
 
         self._input_path = input_path

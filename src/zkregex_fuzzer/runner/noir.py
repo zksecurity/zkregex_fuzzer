@@ -1,5 +1,5 @@
 """
-Runner for Circom.
+Runner for Noir.
 """
 
 import json
@@ -48,7 +48,7 @@ class NoirRunner(Runner):
     Runner that uses the Circom compiler.
     """
 
-    def __init__(self, regex: str, kwargs: dict):
+    def __init__(self, regex: str, oracle: bool, kwargs: dict):
         self._path = tempfile.TemporaryDirectory(delete=False).name
 
         self._run_the_prover = kwargs.get("noir_prove", False)
@@ -57,7 +57,7 @@ class NoirRunner(Runner):
         self._noir_num_capture_groups = kwargs.get("num_capture_groups", 1)
         self._noir_capture_1_max_length = kwargs.get("capture_1_max_length", 200)
         self._template_name = "Test"
-        super().__init__(regex, kwargs)
+        super().__init__(regex, oracle, kwargs)
         self._runner = "Noir"
         self.identifer = ""
 
@@ -177,14 +177,17 @@ class NoirRunner(Runner):
         logger.debug("Matching regex starts")
         # Generate circuit inputs using zk-regex CLI
         input_path = str(Path(self._path) / "test_input.json")
-        ZkRegexSubprocess.generate_circuit_inputs(
+        status =ZkRegexSubprocess.generate_circuit_inputs(
             graph_path=self._graph_path,
             input_str=input,
             max_haystack_len=self._noir_max_haystack_len,
             max_match_len=self._noir_max_match_len,
             output_path=input_path,
             proving_framework="noir",
+            oracle=self._oracle,
         )
+        if status and self._oracle is False:
+            return False, ""
         self._convert_json_to_toml(input_path)
 
         # Generate the witness

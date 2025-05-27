@@ -97,6 +97,10 @@ class ValidInputGenerator(ABC):
                 continue
             self._string_counts[string] += 1
 
+            # TODO: fix me when we can support single input strings
+            if len(string) <= 1:
+                continue
+
             # Check if the string is valid for the regex
             if check_if_string_is_valid(self.regex, string):
                 return string

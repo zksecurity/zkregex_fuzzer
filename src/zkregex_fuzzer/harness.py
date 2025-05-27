@@ -110,8 +110,13 @@ def harness(
     output_path = kwargs.get("save_output", "")
     status_to_save = kwargs.get("save", None) or []
 
+    if inp_num > 0:
+        max_haystack_len = max(len(input) for input in inputs)
+        kwargs["max_haystack_len"] = max_haystack_len
+        kwargs["max_match_len"] = max_haystack_len
+
     try:
-        primary_runner = primary_runner_cls(regex, {})
+        primary_runner = primary_runner_cls(regex, oracle, {})
     except RegexCompileError as e:
         return _return_harness_result(
             HarnessResult(
@@ -124,7 +129,7 @@ def harness(
         )
 
     try:
-        secondary_runner = secondary_runner_cls(regex, kwargs)
+        secondary_runner = secondary_runner_cls(regex, oracle, kwargs)
     except RegexCompileError as e:
         return _return_harness_result(
             HarnessResult(

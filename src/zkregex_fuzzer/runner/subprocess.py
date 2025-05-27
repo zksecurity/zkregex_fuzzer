@@ -60,17 +60,28 @@ class ZkRegexSubprocess:
         max_match_len: int,
         output_path: str,
         proving_framework: str,
-    ) -> None:
+        oracle: bool,
+    ) -> bool:
         """
         Generate Circom inputs from a cached graph and test string.
+
+        Returns:
+            if oracle is True, return True if the input is valid, False otherwise.
+            if oracle is False, return True if the input is invalid, False otherwise.
         """
+        if '"' in input_str:
+            input_str = "'" + input_str + "'"
+        elif "'" in input_str:
+            input_str = '"' + input_str + '"'
+        elif input_str[0] == "-":
+            input_str = '"' + input_str + '"'
         cmd = [
             "zk-regex",
             "generate-circuit-input",
             "--graph-path",
             graph_path,
             "--input",
-            input_str,
+            input_str, 
             "--max-haystack-len",
             str(max_haystack_len),
             "--max-match-len",
@@ -81,11 +92,19 @@ class ZkRegexSubprocess:
             proving_framework,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
-
         if result.returncode != 0:
+            # if oracle is false we except it to fail
+            if not oracle:
+                return True
+
             raise RegexRunError(
-                f"Error generating inputs with zk-regex: {result.stderr}"
+                f"Error generating inputs with zk-regex (oracle is True but we failed to generate an input): {result.stderr}"
             )
+        if not oracle:
+            raise RegexRunError(
+                f"Error generating inputs with zk-regex (oracle is False but we generated an input): {result.stderr}"
+            )
+        return True
 
     @classmethod
     def compile_to_noir(
