@@ -534,7 +534,7 @@ class MixedGenerator(InvalidInputGenerator):
             # GrammarBasedGenerator(regex),
             MutationBasedGenerator(regex, kwargs),
             ComplementBasedGenerator(regex, kwargs),
-            NFAInvalidGenerator(regex, kwargs),
+            # NFAInvalidGenerator(regex, kwargs),
         ]
 
     def generate_unsafe(self) -> Optional[str]:

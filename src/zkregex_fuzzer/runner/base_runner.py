@@ -33,8 +33,9 @@ class Runner(ABC):
     Abstract base class for regex runners.
     """
 
-    def __init__(self, regex: str, kwargs: dict):
+    def __init__(self, regex: str, oracle: bool, kwargs: dict):
         self._regex = regex
+        self._oracle = oracle
         self._runner = "Abstract runner"
         self._regex_object = self.compile(regex)
 

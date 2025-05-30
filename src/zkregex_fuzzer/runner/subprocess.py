@@ -37,19 +37,75 @@ class ZkRegexSubprocess:
         cmd = [
             "zk-regex",
             "decomposed",
-            "-d",
+            "--decomposed-regex-path",
             json_file_path,
-            "-c",
+            "--output-file-path",
             output_file_path,
-            "-t",
+            "--template-name",
             template_name,
-            "-g",
-            "true" if substr else "false",
+            "--proving-framework",
+            "circom",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
             raise RegexCompileError(f"Error compiling with zk-regex: {result.stderr}")
+
+    @classmethod
+    def generate_circuit_inputs(
+        cls,
+        graph_path: str,
+        input_str: str,
+        max_haystack_len: int,
+        max_match_len: int,
+        output_path: str,
+        proving_framework: str,
+        oracle: bool,
+    ) -> bool:
+        """
+        Generate Circom inputs from a cached graph and test string.
+
+        Returns:
+            if oracle is True, return True if the input is valid, False otherwise.
+            if oracle is False, return True if the input is invalid, False otherwise.
+        """
+        # if '"' in input_str:
+        #     input_str = "'" + input_str + "'"
+        # elif "'" in input_str:
+        #     input_str = '"' + input_str + '"'
+        # elif input_str[0] == "-":
+        #     input_str = '"' + input_str + '"'
+
+        cmd = [
+            "zk-regex",
+            "generate-circuit-input",
+            "--graph-path",
+            graph_path,
+            "--input",
+            input_str,
+            "--max-haystack-len",
+            str(max_haystack_len),
+            "--max-match-len",
+            str(max_match_len),
+            "--output-file-path",
+            output_path,
+            "--proving-framework",
+            proving_framework,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.debug(f"result.stderr: {result.stderr}")
+            if not oracle:
+                return True
+
+            raise RegexRunError(
+                f"Error generating inputs with zk-regex (oracle is True but we failed to generate an input): {result.stderr}"
+            )
+        if not oracle:
+            raise RegexRunError(
+                f"Error generating inputs with zk-regex (oracle is False but we generated an input): {result.stderr}"
+            )
+        return True
 
     @classmethod
     def compile_to_noir(
@@ -66,14 +122,14 @@ class ZkRegexSubprocess:
         cmd = [
             "zk-regex",
             "decomposed",
-            "-d",
+            "--decomposed-regex-path",
             json_file_path,
-            "--noir-file-path",
+            "--output-file-path",
             output_file_path,
-            "-t",
+            "--template-name",
             template_name,
-            "-g",
-            "true" if substr else "false",
+            "--proving-framework",
+            "noir",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -289,8 +345,6 @@ class NoirSubprocess:
             "--silence-warnings",
             "--skip-underconstrained-check",
         ]
-
-        logger.debug(" ".join(cmd))
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=noir_dir_path)
 
         if result.returncode != 0:
@@ -305,10 +359,8 @@ class NoirSubprocess:
         """
         match = re.search(r"output: \[([^\]]+)\]", stdout)
         if match:
-            hex_values = match.group(1)
-            int_list = [
-                int(x, 16) for x in hex_values.split(", ")
-            ]  # Convert hex to int
+            values = match.group(1)
+            int_list = [int(x) for x in values.split(", ")]
             return int_list
 
         return []
@@ -319,14 +371,13 @@ class NoirSubprocess:
         Generate witness with Noir.
         """
         cmd = ["nargo", "execute", "--silence-warnings"]
-
-        logger.debug(" ".join(cmd))
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=noir_dir_path)
+        result = subprocess.run(cmd, capture_output=True, cwd=noir_dir_path)
 
         if result.returncode != 0:
             return []
 
-        return cls._extract_output(result.stdout)
+        stdout_str = result.stdout.decode("utf-8")
+        return cls._extract_output(stdout_str)
 
 
 class BarretenbergSubprocess:

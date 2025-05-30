@@ -13,8 +13,8 @@ class PythonReRunner(Runner):
     Runner that uses the Python re module.
     """
 
-    def __init__(self, regex: str, kwargs: dict):
-        super().__init__(regex, kwargs)
+    def __init__(self, regex: str, oracle: bool, kwargs: dict):
+        super().__init__(regex, oracle, kwargs)
         self._runner = "Python re module"
 
     def compile(self, regex: str) -> None:

@@ -57,18 +57,18 @@ BASIC_REGEX_GRAMMAR: Grammar = {
         "^<EXPR>",
         "<EXPR>$",
         "^<EXPR>$",
-        # Alternative caret forms
-        "(|^)<EXPR>",  # Empty or start of line
-        "(\\r\\n|^)<EXPR>",  # Windows newline or start of line
-        "(\\n|^)<EXPR>",  # Unix newline or start of line
-        "(\\r|^)<EXPR>",  # Carriage return or start of line
-        "(\\n\\r|^)<EXPR>",  # Reverse Windows newline or start of line
-        # Combinations with end anchors
-        "(|^)<EXPR>$",
-        "(\\r\\n|^)<EXPR>$",
-        "(\\n|^)<EXPR>$",
-        "(\\r|^)<EXPR>$",
-        "(\\n\\r|^)<EXPR>$",
+        # # Alternative caret forms
+        # "(|^)<EXPR>",  # Empty or start of line
+        # "(\\r\\n|^)<EXPR>",  # Windows newline or start of line
+        # "(\\n|^)<EXPR>",  # Unix newline or start of line
+        # "(\\r|^)<EXPR>",  # Carriage return or start of line
+        # "(\\n\\r|^)<EXPR>",  # Reverse Windows newline or start of line
+        # # Combinations with end anchors
+        # "(|^)<EXPR>$",
+        # "(\\r\\n|^)<EXPR>$",
+        # "(\\n|^)<EXPR>$",
+        # "(\\r|^)<EXPR>$",
+        # "(\\n\\r|^)<EXPR>$",
     ],
     # Expression is a series of alternations
     "<EXPR>": ["<ALT>"],
@@ -99,7 +99,7 @@ BASIC_REGEX_GRAMMAR: Grammar = {
         "<CHAR>",  # Single character
         ".",  # Any character
         "<CHARCLASS>",  # Character class
-        "(<EXPR>)",  # Grouped expression
+        "(?:<EXPR>)",  # Grouped expression
         "<SHORTHAND>",  # Character class shorthand
     ],
     # Shorthand character classes
@@ -166,7 +166,7 @@ OLD_GRAMMAR: Grammar = {
     "<start>": ["<REGEX>"],
     # A regex is optional beginning anchor + expression + mandatory end anchor
     "<REGEX>": ["<BEGIN_ANCHOR><EXPRESSION><END_ANCHOR>", "<EXPRESSION><END_ANCHOR>"],
-    "<BEGIN_ANCHOR>": ["^", "(|^)"],
+    "<BEGIN_ANCHOR>": ["^", "(?:|^)"],
     "<END_ANCHOR>": ["$"],
     # Expression: possibly multiple union parts
     "<EXPRESSION>": [
@@ -179,7 +179,7 @@ OLD_GRAMMAR: Grammar = {
     "<QUANTIFIER>": [
         "*",
         "+",
-        # "?",
+        "?",
         "{<RANGE_SPEC>}",
     ],
     "<RANGE_SPEC>": ["<INTEGER>", "<INTEGER>,<INTEGER>"],

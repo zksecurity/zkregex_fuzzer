@@ -10,6 +10,7 @@ import string
 import threading
 import time
 import warnings
+import rstr
 from functools import wraps
 
 import psutil
@@ -105,22 +106,29 @@ def check_zkregex_rules_basic(regex: str) -> tuple[bool, bool]:
     Returns (True, True) if all checks pass, (False, True) if the regex is invalid, (False, False) if the regex has multiple accepting states.
     """
     # 1) If '^' is present, it is either at index 0 or in substring '(|^)' or in (\r\n|^) or in substring '[^...]'
-    if not correct_carret_position(regex):
-        return False, True  # we return True as we haven't performed the DFA check
+    #if not correct_carret_position(regex):
+    #    return False, True  # we return True as we haven't performed the DFA check
 
-    # 2) Check no lazy quantifiers like *?, +?, ??, or {m,n}?
-    if has_lazy_quantifier(regex):
-        return False, True  # we return True as we haven't performed the DFA check
+    ## 2) Check no lazy quantifiers like *?, +?, ??, or {m,n}?
+    #if has_lazy_quantifier(regex):
+    #    return False, True  # we return True as we haven't performed the DFA check
 
-    # 3) Check that the regex has exactly one accepting state
-    try:
-        if not wrapped_has_one_accepting_state_regex(regex):
-            return False, False
-    except Exception as e:
-        logger.warning(f"Error checking if regex has exactly one accepting state: {e}")
-        return False, False
+    ## 3) Check that the regex has exactly one accepting state
+    #try:
+    #    if not wrapped_has_one_accepting_state_regex(regex):
+    #        return False, False
+    #except Exception as e:
+    #    logger.warning(f"Error checking if regex has exactly one accepting state: {e}")
+    #    return False, False
 
-    return True, True
+    # We just want to check if the regex accepts more than a single character string
+    # TODO improve this
+    # Fuzzy solution generate 10 inputs and check if any of them has more than 1 character
+    for _ in range(10):
+        inp = rstr.xeger(regex)
+        if len(inp) > 1:
+            return True, True
+    return False, False
 
 
 def check_if_string_is_valid(regex: str, string: str) -> bool:
