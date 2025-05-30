@@ -264,7 +264,7 @@ class MixedGenerator(ValidInputGenerator):
             # GrammarBasedGenerator(regex),
             RstrGenerator(regex, kwargs),
             ExrexGenerator(regex, kwargs),
-            NFAValidGenerator(regex, kwargs),
+            # NFAValidGenerator(regex, kwargs),
         ]
 
     def generate_unsafe(self) -> Optional[str]:

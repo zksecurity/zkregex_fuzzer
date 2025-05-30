@@ -69,19 +69,20 @@ class ZkRegexSubprocess:
             if oracle is True, return True if the input is valid, False otherwise.
             if oracle is False, return True if the input is invalid, False otherwise.
         """
-        if '"' in input_str:
-            input_str = "'" + input_str + "'"
-        elif "'" in input_str:
-            input_str = '"' + input_str + '"'
-        elif input_str[0] == "-":
-            input_str = '"' + input_str + '"'
+        # if '"' in input_str:
+        #     input_str = "'" + input_str + "'"
+        # elif "'" in input_str:
+        #     input_str = '"' + input_str + '"'
+        # elif input_str[0] == "-":
+        #     input_str = '"' + input_str + '"'
+
         cmd = [
             "zk-regex",
             "generate-circuit-input",
             "--graph-path",
             graph_path,
             "--input",
-            input_str, 
+            input_str,
             "--max-haystack-len",
             str(max_haystack_len),
             "--max-match-len",
@@ -93,7 +94,7 @@ class ZkRegexSubprocess:
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            # if oracle is false we except it to fail
+            logger.debug(f"result.stderr: {result.stderr}")
             if not oracle:
                 return True
 
@@ -344,8 +345,6 @@ class NoirSubprocess:
             "--silence-warnings",
             "--skip-underconstrained-check",
         ]
-
-        logger.debug(" ".join(cmd))
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=noir_dir_path)
 
         if result.returncode != 0:
@@ -360,10 +359,8 @@ class NoirSubprocess:
         """
         match = re.search(r"output: \[([^\]]+)\]", stdout)
         if match:
-            hex_values = match.group(1)
-            int_list = [
-                int(x, 16) for x in hex_values.split(", ")
-            ]  # Convert hex to int
+            values = match.group(1)
+            int_list = [int(x) for x in values.split(", ")]
             return int_list
 
         return []
@@ -374,14 +371,13 @@ class NoirSubprocess:
         Generate witness with Noir.
         """
         cmd = ["nargo", "execute", "--silence-warnings"]
-
-        logger.debug(" ".join(cmd))
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=noir_dir_path)
+        result = subprocess.run(cmd, capture_output=True, cwd=noir_dir_path)
 
         if result.returncode != 0:
             return []
 
-        return cls._extract_output(result.stdout)
+        stdout_str = result.stdout.decode("utf-8")
+        return cls._extract_output(stdout_str)
 
 
 class BarretenbergSubprocess:

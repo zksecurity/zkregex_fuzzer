@@ -111,9 +111,20 @@ def harness(
     status_to_save = kwargs.get("save", None) or []
 
     if inp_num > 0:
-        max_haystack_len = max(len(input) for input in inputs)
-        kwargs["max_haystack_len"] = max_haystack_len
-        kwargs["max_match_len"] = max_haystack_len
+        max_len_val = 0
+        # Ensure inputs list is not empty before calling max()
+        if inputs:
+            max_len_val = max(len(s) for s in inputs)
+
+        # Add a buffer to max_haystack_len to account for potential quoting
+        # by ZkRegexSubprocess.generate_circuit_inputs. This quoting can add up to 2 characters.
+        # (e.g., if input contains " it becomes 'input')
+        buffered_max_len = max_len_val + 2
+        kwargs["max_haystack_len"] = buffered_max_len
+
+        # max_match_len is currently tied to max_haystack_len in this part of the code.
+        # It should also use the buffered length for consistency.
+        kwargs["max_match_len"] = buffered_max_len
 
     try:
         primary_runner = primary_runner_cls(regex, oracle, {})
@@ -184,6 +195,9 @@ def harness(
                 and primary_runner_str != secondary_runner_str
             ):
                 failed_inputs.append(input)
+                logger.warning(
+                    f"Substring mismatch detected - Primary: '{primary_runner_str}' vs Secondary: '{secondary_runner_str}'"
+                )
                 if status == HarnessStatus.FAILED:
                     logger.warning(
                         f"regex: {regex}, input: {input}, failed with substr mismatch, when there is already a failed input"

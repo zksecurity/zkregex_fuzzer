@@ -36,9 +36,10 @@ fn main(
         capture_group_1_start,
         capture_group_start_indices,
     );
+    let result = capture_1.storage();
     print("output: ");
-    println(capture_1);
-    capture_1.storage()
+    println(result);
+    result
 }
 """
 
@@ -55,7 +56,7 @@ class NoirRunner(Runner):
         self._noir_max_haystack_len = kwargs.get("max_haystack_len", 200)
         self._noir_max_match_len = kwargs.get("max_match_len", 200)
         self._noir_num_capture_groups = kwargs.get("num_capture_groups", 1)
-        self._noir_capture_1_max_length = kwargs.get("capture_1_max_length", 200)
+        self._noir_capture_1_max_length = self._noir_max_match_len
         self._template_name = "Test"
         super().__init__(regex, oracle, kwargs)
         self._runner = "Noir"
@@ -177,7 +178,7 @@ class NoirRunner(Runner):
         logger.debug("Matching regex starts")
         # Generate circuit inputs using zk-regex CLI
         input_path = str(Path(self._path) / "test_input.json")
-        status =ZkRegexSubprocess.generate_circuit_inputs(
+        status = ZkRegexSubprocess.generate_circuit_inputs(
             graph_path=self._graph_path,
             input_str=input,
             max_haystack_len=self._noir_max_haystack_len,
@@ -196,10 +197,6 @@ class NoirRunner(Runner):
         is_match = len(outputs) > 0
         logger.debug("Generating witness ends")
 
-        # Debug prints
-        logger.debug(f"Raw outputs from witness_gen: {outputs}")
-        logger.debug(f"is_match (len(outputs) > 0): {is_match}")
-
         if self._run_the_prover and is_match:
             # prove
             BarretenbergSubprocess.prove(self._path)
@@ -211,14 +208,9 @@ class NoirRunner(Runner):
 
         # Convert the output to a string
         substr_output_numeric = outputs
-        substr_output = "".join([chr(int(c)) for c in substr_output_numeric])
-        substr_output = substr_output.strip("\x00")  # remove zero padding
-
-        logger.debug(f"substr_output_numeric: {substr_output_numeric}")
-        logger.debug(f"substr_output: '{substr_output}'")
-        logger.debug(
-            f"Final result: is_match={is_match}, substr_output='{substr_output}'"
-        )
+        substr_output_as_bytes = bytes(substr_output_numeric)
+        substr_output = substr_output_as_bytes.decode("utf-8", errors="replace")
+        substr_output = substr_output.strip("\x00")
 
         return is_match, substr_output
 

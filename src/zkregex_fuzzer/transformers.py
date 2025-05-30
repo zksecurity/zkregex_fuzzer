@@ -10,9 +10,24 @@ TODO:
 
 import sre_parse
 import string
+import sre_constants
 from typing import Any, Dict, List, Tuple
 
 from fuzzingbook.Grammars import Expansion, Grammar
+
+
+# Define character sets for CATEGORY expansion
+_PRINTABLE_ASCII_SET = set(string.printable)  # Using printable ASCII as a base set
+_CATEGORY_CHARS_EXPANSION = {
+    sre_constants.CATEGORY_DIGIT: set(string.digits),
+    sre_constants.CATEGORY_NOT_DIGIT: _PRINTABLE_ASCII_SET - set(string.digits),
+    sre_constants.CATEGORY_SPACE: set(string.whitespace),
+    sre_constants.CATEGORY_NOT_SPACE: _PRINTABLE_ASCII_SET - set(string.whitespace),
+    sre_constants.CATEGORY_WORD: set(string.ascii_letters + string.digits + "_"),
+    sre_constants.CATEGORY_NOT_WORD: _PRINTABLE_ASCII_SET
+    - set(string.ascii_letters + string.digits + "_"),
+    # Add sre_constants.CATEGORY_LINEBREAK and sre_constants.CATEGORY_NOT_LINEBREAK if needed
+}
 
 
 def regex_to_grammar(regex: str) -> Grammar:
@@ -127,12 +142,13 @@ def parse_tokens_into_rule(
             if lit_rule:
                 expansion_parts.append(lit_rule)
 
-            # subpattern is (group_num, flags, sub_tokens)
-            (_, _, sub_tokens) = token_value
+            # token_value is an sre_parse.SubPattern object.
+            # Its .data attribute contains the list of tokens for the subpattern.
+            sub_pattern_tokens = token_value.data
+
             group_rule = new_rule_name(grammar, "GRP")
-            parse_tokens_into_rule(sub_tokens, grammar, group_rule)
-            # If you want parentheses literally, you can do:
-            # grammar[group_rule] = [f"({grammar[group_rule][0]})"] # etc.
+            # Pass the actual list of tokens from the subpattern's data
+            parse_tokens_into_rule(sub_pattern_tokens, grammar, group_rule)
             expansion_parts.append(group_rule)
 
         elif token_type == sre_parse.BRANCH:
@@ -208,37 +224,55 @@ def parse_tokens_into_rule(
 # ------------------------------------------------------------------------
 
 
-def handle_in_class(token_list_in, grammar: Grammar) -> str:
+def handle_in_class(token_list_in: List[Tuple[Any, Any]], grammar: Grammar) -> str:
     """
-    Handle bracket classes [ ... ] like [a-z0-9].
+    Handle bracket classes [ ... ] like [a-z0-9\\w].
     token_list_in is a list of (op, val). e.g. (RANGE, (97, 122)) for a-z.
-    We gather possible chars, ignoring NEGATE or advanced stuff.
+    We gather possible chars, considering negation and categories.
     Then define a new rule that enumerates those chars.
     """
-    chars = []
-    for in_op, val in token_list_in:
-        if in_op == sre_parse.LITERAL:
-            chars.append(chr(val))
+    collected_chars_for_set = set()
+    is_negated = False
+
+    # Make a mutable copy of the token list to check for NEGATE
+    processing_tokens = list(token_list_in)
+
+    if processing_tokens and processing_tokens[0][0] == sre_constants.NEGATE:
+        is_negated = True
+        processing_tokens.pop(0)  # Remove NEGATE, process the rest
+
+    for in_op, val in processing_tokens:
+        if in_op == sre_constants.LITERAL:
+            collected_chars_for_set.add(chr(val))
         elif in_op == sre_parse.RANGE:
             (start, end) = val
-            for cp in range(start, end + 1):
-                chars.append(chr(cp))
-        elif in_op == sre_parse.NEGATE:
-            # e.g. [^...], not fully handled => skip or do partial
-            pass
-        elif in_op == sre_parse.CATEGORY:
-            # e.g. \d => digits
-            # not handled here, or do something custom
-            pass
-        # etc.
+            # Ensure start <= end, though Python's range handles start > end by yielding nothing
+            for cp in range(min(start, end), max(start, end) + 1):
+                collected_chars_for_set.add(chr(cp))
+        elif in_op == sre_constants.CATEGORY:
+            expanded_set = _CATEGORY_CHARS_EXPANSION.get(val)
+            if expanded_set:
+                collected_chars_for_set.update(expanded_set)
+            # else: you could log an unhandled category if necessary
 
-    if not chars:
-        # fallback
-        chars = ["X"]
+    # Determine the final character set for the FuzzingBook grammar rule
+    final_char_list_for_rule = []
+    if is_negated:
+        # For a negated class [^...], the rule should expand to characters NOT in collected_chars_for_set
+        # We use a representative set (printable ASCII) as the universe
+        valid_expansion_chars = _PRINTABLE_ASCII_SET - collected_chars_for_set
+        if not valid_expansion_chars:  # Fallback if negation makes the set empty
+            valid_expansion_chars.add("X")  # Default character like 'X' or a space
+        final_char_list_for_rule = sorted(list(valid_expansion_chars))
+    else:
+        # For a positive class [...], the rule expands to characters IN collected_chars_for_set
+        if not collected_chars_for_set:  # Fallback if the class was empty
+            collected_chars_for_set.add("X")
+        final_char_list_for_rule = sorted(list(collected_chars_for_set))
 
     rule_name = new_rule_name(grammar, "CLASS")
-    # each char is a separate expansion
-    grammar[rule_name] = chars
+    # Each character in the final list becomes a separate expansion choice for the FuzzingBook grammar
+    grammar[rule_name] = final_char_list_for_rule
     return rule_name
 
 
